@@ -1,0 +1,53 @@
+package com.lucenadrive.common.error;
+
+import org.springframework.http.HttpStatus;
+
+/** Códigos de erro estáveis expostos pela API. O frontend traduz pelo código, nunca pela mensagem. */
+public enum ErrorCode {
+    VALIDATION_FAILED(HttpStatus.BAD_REQUEST),
+    INVALID_CPF(HttpStatus.BAD_REQUEST),
+    UNDERAGE(HttpStatus.UNPROCESSABLE_CONTENT),
+    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED),
+    FORBIDDEN(HttpStatus.FORBIDDEN),
+    MFA_REQUIRED(HttpStatus.FORBIDDEN),
+    MFA_INVALID_CODE(HttpStatus.UNAUTHORIZED),
+    MFA_LOCKED(HttpStatus.TOO_MANY_REQUESTS),
+    REAUTHENTICATION_REQUIRED(HttpStatus.FORBIDDEN),
+    EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN),
+    ACCOUNT_SUSPENDED(HttpStatus.FORBIDDEN),
+    PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND),
+    NOT_FOUND(HttpStatus.NOT_FOUND),
+    CONFLICT(HttpStatus.CONFLICT),
+    CPF_ALREADY_REGISTERED(HttpStatus.CONFLICT),
+    PLATE_ALREADY_REGISTERED(HttpStatus.CONFLICT),
+    ALREADY_REGISTERED(HttpStatus.CONFLICT),
+    INVALID_STATE_TRANSITION(HttpStatus.CONFLICT),
+    TOO_FAR_FROM_PICKUP(HttpStatus.UNPROCESSABLE_CONTENT),
+    RIDE_ALREADY_ACCEPTED(HttpStatus.CONFLICT),
+    OFFER_EXPIRED(HttpStatus.GONE),
+    ACTIVE_RIDE_EXISTS(HttpStatus.CONFLICT),
+    DRIVER_NOT_ELIGIBLE(HttpStatus.FORBIDDEN),
+    OUTSIDE_SERVICE_AREA(HttpStatus.UNPROCESSABLE_CONTENT),
+    QUOTE_EXPIRED(HttpStatus.GONE),
+    FARE_NOT_CONFIGURED(HttpStatus.UNPROCESSABLE_CONTENT),
+    COUPON_INVALID(HttpStatus.UNPROCESSABLE_CONTENT),
+    RATING_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_CONTENT),
+    RATING_ALREADY_SUBMITTED(HttpStatus.CONFLICT),
+    CHAT_CLOSED(HttpStatus.CONFLICT),
+    INSUFFICIENT_BALANCE(HttpStatus.UNPROCESSABLE_CONTENT),
+    INVALID_SIGNATURE(HttpStatus.UNAUTHORIZED),
+    RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS),
+    INTEGRATION_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE),
+    INTEGRATION_FAILURE(HttpStatus.BAD_GATEWAY),
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
+
+    private final HttpStatus status;
+
+    ErrorCode(HttpStatus status) {
+        this.status = status;
+    }
+
+    public HttpStatus status() {
+        return status;
+    }
+}

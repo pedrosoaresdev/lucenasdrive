@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// Lucena Drive — regras do Cloud Firestore.
+// Princípio: NEGAR POR PADRÃO. Toda escrita é feita pelo backend (Admin SDK, que ignora regras),
+// após autenticação, autorização e validação. Clientes têm apenas LEITURA mínima necessária
+// para listeners em tempo real dos próprios dados.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Perfil básico do próprio usuário (sem CPF completo: fica em userPrivate, inacessível).
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+    }
+
+    match /passengerProfiles/{uid} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+    }
+
+    match /driverProfiles/{uid} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if signedIn() && resource.data.driverId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Corrida: somente os participantes (passageiro e motorista vinculados) leem.
+    // O passageiro acompanha status e posição do motorista por este documento.
+    match /rides/{rideId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participantIds;
+      allow write: if false;
+    }
+
+    // Ofertas: somente o motorista destinatário (consulta deve filtrar driverId == uid).
+    match /rideOffers/{offerId} {
+      allow read: if signedIn() && resource.data.driverId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Chat: participantes leem enquanto a conversa não estiver encerrada (CLOSED).
+    // O envio é feito pela API (autorização, limite, sanitização, deduplicação).
+    match /rideChats/{rideId} {
+      allow read: if signedIn()
+        && request.auth.uid in resource.data.participantIds
+        && resource.data.status != 'CLOSED';
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow read: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/rideChats/$(rideId)).data.participantIds
+          && get(/databases/$(database)/documents/rideChats/$(rideId)).data.status != 'CLOSED';
+        allow write: if false;
+      }
+    }
+
+    // Notificações no app: somente o destinatário (consulta deve filtrar userId == uid).
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Todo o resto (userPrivate, driverPrivate, cpfIndex, driverLocations, ratings, fareConfigs,
+    // coupons, ledgerEntries, paymentTransactions, payoutRequests, pixKeys, adminAuditLogs,
+    // adminSecurity, adminSessions, securityEvents, supportTickets, webhookEvents...) é
+    // acessível exclusivamente pelo backend.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

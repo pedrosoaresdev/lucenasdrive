@@ -1,0 +1,17 @@
+lucena:
+  firebase:
+    enabled: false
+  security:
+    require-verified-email: true
+  maps:
+    allow-straight-line-fallback: true
+  dispatch:
+    tick-ms: 3600000
+  coupons:
+    expire-check-ms: 3600000
+  chat:
+    maintenance-ms: 3600000
+logging:
+  structured:
+    format:
+      console: ""

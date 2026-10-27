@@ -1,0 +1,110 @@
+{
+  "indexes": [
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "passengerId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "passengerId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "passengerId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "passengerId", "order": "ASCENDING" }, { "fieldPath": "rating.status", "order": "ASCENDING" },
+      { "fieldPath": "timeline.completedAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "driverId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "driverId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "driverId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" },
+      { "fieldPath": "timeline.completedAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "timeline.completedAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "cityId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "cityId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "rides", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "cityId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "rideOffers", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "driverId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rideOffers", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "rideId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rideOffers", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "expiresAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "driverLocations", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "available", "order": "ASCENDING" }, { "fieldPath": "cityId", "order": "ASCENDING" },
+      { "fieldPath": "categories", "arrayConfig": "CONTAINS" } ] },
+    { "collectionGroup": "rideEvents", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "rideId", "order": "ASCENDING" }, { "fieldPath": "at", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rideChats", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "closesAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "rideChats", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "readOnlySince", "order": "ASCENDING" } ] },
+    { "collectionGroup": "notifications", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "userId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "ratings", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "rateeId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "ratings", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "rateeId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "ratings", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "rateeId", "order": "ASCENDING" }, { "fieldPath": "rateeRole", "order": "ASCENDING" },
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "ratings", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "ratings", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "raterId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "ratings", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "stars", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] },
+    { "collectionGroup": "ledgerEntries", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "account", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "ledgerEntries", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "rideId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "paymentTransactions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "paymentTransactions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "payoutRequests", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "ownerId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "payoutRequests", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "payoutRequests", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "adminAuditLogs", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "targetId", "order": "ASCENDING" }, { "fieldPath": "at", "order": "DESCENDING" } ] },
+    { "collectionGroup": "adminAuditLogs", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "targetType", "order": "ASCENDING" }, { "fieldPath": "at", "order": "DESCENDING" } ] },
+    { "collectionGroup": "adminAuditLogs", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "actorId", "order": "ASCENDING" }, { "fieldPath": "at", "order": "DESCENDING" } ] },
+    { "collectionGroup": "securityEvents", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "uid", "order": "ASCENDING" }, { "fieldPath": "at", "order": "DESCENDING" } ] },
+    { "collectionGroup": "adminSessions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "uid", "order": "ASCENDING" }, { "fieldPath": "revoked", "order": "ASCENDING" },
+      { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "supportTickets", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "userId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "supportTickets", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "supportTickets", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "category", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] },
+    { "collectionGroup": "couponRedemptions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "code", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "couponRedemptions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "code", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] },
+    { "collectionGroup": "users", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "roles", "arrayConfig": "CONTAINS" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "driverProfiles", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "fareConfigVersions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "configId", "order": "ASCENDING" }, { "fieldPath": "version", "order": "DESCENDING" } ] },
+    { "collectionGroup": "privacyRequests", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "userId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "pushTokens", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "userId", "order": "ASCENDING" } ] }
+  ],
+  "fieldOverrides": []
+}

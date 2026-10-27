@@ -1,0 +1,116 @@
+spring:
+  application:
+    name: lucena-drive-backend
+  threads:
+    virtual:
+      enabled: true
+  mvc:
+    problemdetails:
+      enabled: false
+  jackson:
+    deserialization:
+      fail-on-null-for-primitives: false
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
+  tomcat:
+    connection-timeout: 10s
+    max-http-form-post-size: 1MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+logging:
+  structured:
+    format:
+      console: ${LOG_FORMAT:logstash}
+  level:
+    com.lucenadrive: INFO
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
+lucena:
+  firebase:
+    enabled: true
+    project-id: ${FIREBASE_PROJECT_ID:}
+    credentials-path: ${GOOGLE_APPLICATION_CREDENTIALS:}
+    storage-bucket: ${FIREBASE_STORAGE_BUCKET:}
+    emulators: ${FIREBASE_USE_EMULATORS:false}
+  security:
+    data-encryption-key: ${LUCENA_DATA_ENCRYPTION_KEY:}
+    admin-mfa-token-secret: ${LUCENA_ADMIN_MFA_TOKEN_SECRET:}
+    admin-session-ttl: PT8H
+    step-up-window: PT5M
+    reauth-window: PT5M
+    require-verified-email: ${REQUIRE_VERIFIED_EMAIL:true}
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  eligibility:
+    passenger-min-age: 18
+    driver-min-age: 21
+  maps:
+    server-api-key: ${MAPS_SERVER_API_KEY:}
+    allow-straight-line-fallback: ${MAPS_ALLOW_STRAIGHT_LINE_FALLBACK:false}
+  dispatch:
+    offer-timeout: PT20S
+    batch-size: 3
+    max-search-time: PT3M
+    radius-km: 8
+    max-batches: 5
+    quote-ttl: PT5M
+    max-arrival-distance-meters: ${DISPATCH_MAX_ARRIVAL_METERS:500}
+  chat:
+    max-length: 500
+    max-messages-per-window: 10
+    window-seconds: 10
+    read-only-after-end: P7D
+    retention: P180D
+  ratings:
+    allow-skip: true
+    pending-window: P7D
+  payments:
+    provider: ${PAYMENTS_PROVIDER:none}
+    api-key: ${PAYMENTS_API_KEY:}
+    webhook-secret: ${PAYMENTS_WEBHOOK_SECRET:}
+    environment: ${PAYMENTS_ENVIRONMENT:sandbox}
+  rate-limit:
+    requests-per-minute: 120
+    admin-requests-per-minute: 300
+  legal:
+    terms-version: "2026-10"
+    privacy-version: "2026-10"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+logging:
+  structured:
+    format:
+      console: ""
+springdoc:
+  swagger-ui:
+    enabled: true
+lucena:
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID:demo-lucena-drive}
+    storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-lucena-drive.appspot.com}
+    emulators: ${FIREBASE_USE_EMULATORS:true}
+  security:
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:4201,http://localhost:4202,http://127.0.0.1:4200,http://127.0.0.1:4201,http://127.0.0.1:4202}
+  maps:
+    allow-straight-line-fallback: ${MAPS_ALLOW_STRAIGHT_LINE_FALLBACK:true}

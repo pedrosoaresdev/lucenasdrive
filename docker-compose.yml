@@ -1,0 +1,41 @@
+# Ambiente LOCAL de desenvolvimento/testes. Usa o Firebase Emulator Suite (projeto demo, sem
+# credenciais reais). Não use este arquivo em produção (ver docs/DEPLOY.md).
+services:
+  emulators:
+    build: ./firebase
+    ports:
+      - "4000:4000"   # UI do Emulator
+      - "8085:8085"   # Firestore
+      - "9099:9099"   # Auth
+      - "9199:9199"   # Storage
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:9099').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 5s
+      retries: 30
+
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      FIREBASE_USE_EMULATORS: "true"
+      FIRESTORE_EMULATOR_HOST: emulators:8085
+      FIREBASE_AUTH_EMULATOR_HOST: emulators:9099
+      FIREBASE_STORAGE_EMULATOR_HOST: emulators:9199
+    ports:
+      - "8080:8080"
+    depends_on:
+      emulators:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        BUILD_CONFIGURATION: development
+    ports:
+      - "4200:4200"   # Passageiro
+      - "4201:4201"   # Motorista
+      - "4202:4202"   # Admin
+    depends_on:
+      - backend

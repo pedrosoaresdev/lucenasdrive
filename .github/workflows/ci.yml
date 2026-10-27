@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: maven }
+      - name: Testes unitários e de integração
+        run: mvn -B verify
+        working-directory: backend
+
+  firebase-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: npm, cache-dependency-path: firebase/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - run: npm ci
+        working-directory: firebase
+      - name: Testes das regras (Firestore e Storage) no Emulator
+        run: npm run test:rules
+        working-directory: firebase
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+        working-directory: frontend
+      - name: Testes unitários (biblioteca compartilhada)
+        run: npx ng test shared --watch=false
+        working-directory: frontend
+      - name: Build de produção dos 3 portais
+        run: |
+          npx ng build passenger
+          npx ng build driver
+          npx ng build admin
+        working-directory: frontend
+
+  e2e:
+    needs: [backend, firebase-rules, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: maven }
+      - run: npm ci --prefix firebase && npm ci --prefix frontend && npm i -g playwright@1 && npx playwright install --with-deps chromium
+      - name: Sobe o ambiente e executa o roteiro de aceitação
+        run: |
+          ./scripts/dev-up.sh &
+          for i in $(seq 1 300); do curl -s http://127.0.0.1:4202 >/dev/null && curl -s http://127.0.0.1:8080/actuator/health | grep -q UP && break; sleep 2; done
+          NODE_PATH=$(npm root -g) node e2e/acceptance.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-screenshots, path: e2e/screenshots }

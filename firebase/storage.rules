@@ -1,0 +1,45 @@
+rules_version = '2';
+
+// Lucena Drive — regras do Firebase Storage. Negar por padrão.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isDocumentFile() {
+      return request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('application/pdf|image/jpeg|image/png|image/webp');
+    }
+
+    function isImage(maxBytes) {
+      return request.resource.size < maxBytes
+        && request.resource.contentType.matches('image/jpeg|image/png|image/webp');
+    }
+
+    // Documentos de motoristas: área privada. O próprio motorista envia; ninguém lê pelo cliente
+    // (equipe autorizada visualiza via URL assinada temporária emitida e auditada pelo backend).
+    match /driverDocuments/{uid}/{fileName} {
+      allow create, update: if isOwner(uid) && isDocumentFile();
+      allow read, delete: if false;
+    }
+
+    // Foto de perfil: enviada pelo dono; legível por usuários autenticados (exibida na corrida).
+    match /profilePhotos/{uid}/{fileName} {
+      allow create, update: if isOwner(uid) && isImage(5 * 1024 * 1024);
+      allow read: if request.auth != null;
+      allow delete: if isOwner(uid);
+    }
+
+    // Anexos de suporte: privados, somente envio pelo dono.
+    match /supportAttachments/{uid}/{fileName} {
+      allow create: if isOwner(uid) && isDocumentFile();
+      allow read, update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

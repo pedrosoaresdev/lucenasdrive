@@ -1,0 +1,26 @@
+# Java
+backend/target/
+*.class
+# Node / Angular
+node_modules/
+frontend/dist/
+frontend/.angular/
+firebase/node_modules/
+# Ambiente e segredos
+.env
+*.env.local
+service-account*.json
+**/environment.local.ts
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+emulator-data/
+# IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
+e2e/screenshots/
+.dev-logs/
