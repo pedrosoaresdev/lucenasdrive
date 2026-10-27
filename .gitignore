@@ -2,10 +2,10 @@
 backend/target/
 *.class
 # Node / Angular
-node_modules/
+node_modules
 frontend/dist/
 frontend/.angular/
-firebase/node_modules/
+firebase/node_modules
 # Ambiente e segredos
 .env
 *.env.local
@@ -24,3 +24,5 @@ emulator-data/
 .DS_Store
 e2e/screenshots/
 .dev-logs/
+.homolog/
+lucena-drive-codigo.zip

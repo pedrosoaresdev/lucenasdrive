@@ -1,0 +1,51 @@
+# Homologação no Firebase `lucenasdrive`
+
+Ambiente para testar com o Firebase **real** (Auth, Firestore, Storage, envio de e-mails) usando apenas
+**dados de teste**. O backend e os portais rodam no seu computador; nada é publicado na internet.
+
+> Não é produção: não há provedor de pagamentos, a rota é aproximada sem chave do Google, e o App Check
+> ainda não está ativo. Não cadastre clientes reais.
+
+## 1. Preparar o projeto no Console Firebase (uma vez)
+1. **Authentication › Método de login:** ative **E-mail/senha**.
+2. **Firestore Database:** crie o banco no **modo de produção**, região `southamerica-east1` (São Paulo).
+   As regras do projeto (negação por padrão) serão publicadas pelo script.
+3. **Storage:** crie o bucket (mesma região). Projetos novos podem exigir o plano **Blaze** para o Storage;
+   defina um **alerta de orçamento** em Google Cloud › Faturamento antes de ativar.
+4. **Configurações do projeto › Seus apps:** cadastre um **app da Web** (ex.: "lucena-drive-web") e copie o
+   bloco `firebaseConfig` para `frontend/projects/homolog.firebase.ts`. Esses valores são públicos.
+5. **Configurações do projeto › Contas de serviço › Gerar nova chave privada:** baixe o JSON e guarde-o
+   **fora da pasta do projeto** (ex.: `C:\chaves\lucenasdrive-servico.json`). Esse arquivo é um segredo:
+   nunca envie por chat, e-mail ou GitHub. O `.gitignore` também bloqueia `service-account*.json`.
+6. (Opcional) **Cloud Messaging › Certificados push da Web:** gere a chave e cole em `HOMOLOG_FCM_VAPID_KEY`.
+
+## 2. Subir o ambiente
+Na pasta do projeto, no PowerShell:
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\homolog-up.ps1
+```
+Na primeira execução o script:
+- pede o caminho do JSON da conta de serviço (recusa se estiver dentro da pasta do projeto);
+- gera as chaves do backend em `.homolog\keys.env` (fora do git) — **faça backup desse arquivo**: sem ele,
+  CPFs criptografados e autenticadores cadastrados ficam ilegíveis;
+- abre o login do Firebase CLI e publica regras e índices (`firebase deploy --only firestore:rules,firestore:indexes,storage --project lucenasdrive`);
+- pede e-mail, nome, CPF e senha do **proprietário**, cria a conta no Authentication e envia o e-mail de
+  confirmação. CPF e senha não são gravados em disco; o CPF fica criptografado no Firestore;
+- inicia o backend (ligado ao `lucenasdrive`) e os 3 portais em `http://127.0.0.1:4200/4201/4202`.
+
+Depois: confirme o e-mail do proprietário, entre no painel (4202) e cadastre o app autenticador.
+
+Para republicar regras/índices depois de mudanças: `.\scripts\homolog-up.ps1 -DeployRules`.
+
+## 3. Roteiro de teste sugerido
+Mesmo roteiro do `docs/INSTALL.md` (cidade e área, tarifa, cupom, motorista, documentos, aprovação, corrida,
+chat, avaliações, suporte com anexo, LGPD). Diferenças em relação ao emulador:
+- e-mails de confirmação e de redefinição de senha chegam de verdade (use e-mails de teste seus);
+- índices compostos recém-publicados levam alguns minutos para ficar prontos; até lá, algumas listas
+  respondem erro `FAILED_PRECONDITION` no log do backend;
+- a equipe vê documentos e anexos normalmente (a conta de serviço permite assinar URLs).
+
+## 4. Limpeza
+Para recomeçar do zero: apague as coleções no Console (Firestore), os usuários de teste (Authentication)
+e os arquivos (Storage), e remova `.homolog\owner-done` para provisionar o proprietário de novo.

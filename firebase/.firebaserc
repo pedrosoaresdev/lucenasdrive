@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "demo-lucena-drive"
+    "default": "demo-lucena-drive",
+    "homolog": "lucenasdrive"
   }
 }
