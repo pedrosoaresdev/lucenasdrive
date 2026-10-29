@@ -36,6 +36,9 @@ traceId, fieldErrors[], details }`; o frontend traduz pelo `code`.
 | POST `/api/v1/rides` | Solicita corrida a partir da cotação (`Idempotency-Key`) |
 | GET `/api/v1/rides/active` · `/pending-rating` · `/{id}` · `/?as=passenger` | Corrida ativa, avaliação pendente, detalhe, histórico paginado |
 | POST `/api/v1/rides/{id}/cancel` | Cancelamento (taxa após chegada ou tolerância de 2 min) |
+| POST/DELETE `/api/v1/rides/{id}/share` | Cria/desativa link de acompanhamento (token só no link; expira 1 h após o fim) |
+| GET `/api/v1/public/ride-shares/{token}` | Visão pública mínima da viagem (sem login; limitada por IP) |
+| POST `/api/v1/rides/{id}/safety-alert` | Alerta de segurança (passageiro ou motorista) → chamado URGENTE com última posição |
 | POST `/api/v1/rides/{id}/rating` · `/rating/skip` | Avaliação 1–5 estrelas / pular |
 | GET `/api/v1/drivers/{id}/ratings/summary` | Média, distribuição e comentários visíveis do motorista |
 | GET `/api/v1/passengers/me/rating` | Média recebida dos motoristas (sem notas individuais) |
@@ -49,6 +52,7 @@ traceId, fieldErrors[], details }`; o frontend traduz pelo `code`.
 | POST `/me/online` · `/me/offline` | Disponibilidade (exige aprovação, veículo aprovado, CNH válida) |
 | GET `/api/v1/driver/offers` · POST `/offers/{rideId}/accept` · `/decline` | Ofertas e aceite transacional |
 | POST `/api/v1/driver/rides/{id}/status` · `/cancel` | Etapas da corrida (máquina de estados); `DRIVER_ARRIVED` exige posição recente (≤ 2 min) a até 500 m do embarque (`TOO_FAR_FROM_PICKUP`) |
+| POST `/api/v1/driver/rides/{id}/cancel` | Desistência: antes do embarque a corrida volta à busca (até 2 vezes), depois é cancelada |
 | POST `/api/v1/driver/rides/{id}/passenger-rating` | Avaliação recíproca do passageiro (1–5, uma vez, mesmo prazo) |
 | POST `/api/v1/driver/location` | Localização (limitada a 1/2 s) |
 | GET `/api/v1/drivers/me/finance` · PUT `/pix-key` · GET/POST `/payouts` | Ganhos, saldos por estado, chave Pix, saques (login recente) |
@@ -65,6 +69,10 @@ traceId, fieldErrors[], details }`; o frontend traduz pelo `code`.
 `GET/POST /api/v1/support/tickets`, `GET /{id}`, `GET/POST /{id}/messages`. Anexos: o app envia ao Storage em
 `supportAttachments/{uid}/` e informa `attachmentPaths`; o servidor confere dono, existência, tipo (PDF/JPG/PNG/WEBP)
 e tamanho (≤ 10 MB). A equipe baixa por `GET /api/v1/admin/support/tickets/{id}/attachments/{n}` (auditado).
+
+Tarifas: `PUT /api/v1/admin/cities/{cityId}/fares/{categoria}` aceita `effectiveFrom` (10 min a 180 dias à frente) para
+programar a alteração; `POST …/cancel-scheduled` cancela. Conversas arquivadas em redespachos:
+`GET /api/v1/admin/rides/{id}/chat-archives?reason=` (auditado).
 
 Anonimização LGPD (ADMIN/OWNER + MFA recente): `POST /api/v1/admin/privacy-requests/{id}/anonymize`.
 

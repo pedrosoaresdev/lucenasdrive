@@ -1,6 +1,6 @@
 # Status do projeto
 
-Última atualização: 2026-10-27 · Etapa 1 (fundação) e Etapa 2 (avaliação recíproca, LGPD, anexos, proximidade, trava distribuída, push web) concluídas.
+Última atualização: 2026-10-29 · Etapas 1, 2 e 3 concluídas (etapa 3: homologação no Firebase `lucenasdrive`, redespacho, segurança em viagem, tarifas com vigência programada).
 
 ## Testes executados
 Resultados reais da última execução neste repositório:
@@ -8,11 +8,11 @@ Resultados reais da última execução neste repositório:
 | Suíte | Comando | Resultado |
 |---|---|---|
 | Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **57 testes, 0 falhas** |
-| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **10 testes, 0 falhas** (fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos) |
-| Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **17 testes, 0 falhas** (regras não mudaram na etapa 2; não reexecutado) |
+| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **13 testes, 0 falhas** (fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
+| Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** |
 | Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **13 testes, 0 falhas** |
 | Build de produção dos 3 portais | `ng build …` | **sem erros nem avisos** |
-| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **27/27 etapas** |
+| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **28/28 etapas** (o cadastro do autenticador foi validado na execução anterior com o mesmo emulador) |
 
 Destaques dos testes de integração:
 - **Aceite concorrente:** 3 motoristas aceitam a mesma corrida simultaneamente → exatamente 1 sucesso (200) e 2 recusas (409).
@@ -67,6 +67,11 @@ perto do embarque (`DISPATCH_MAX_ARRIVAL_METERS`, padrão 500 m); avaliação re
 ofertas; exportação de dados pelo titular (`GET /api/v1/me/data-export`); anonimização executada no painel;
 anexos no suporte (upload pelo usuário, download auditado pela equipe); push web via FCM.
 
+**Etapa 3:** homologação no projeto `lucenasdrive` (`scripts/homolog-up.ps1`, `docs/HOMOLOGACAO.md`); redespacho
+automático quando o motorista desiste antes do embarque (até 2 vezes, conversa anterior arquivada e invisível ao novo
+motorista); link público temporário de acompanhamento e alerta de segurança (chamado URGENTE com a última posição);
+alterações de tarifa programadas com data de vigência (versão criada no instante certo, cancelável).
+
 **Frontend:** design system próprio (tema claro/escuro, acessibilidade, estados de carregamento/vazio/erro/indisponível);
 PWA nos 3 portais; passageiro (landing, cadastro, login, verificação de e-mail, recuperação/redefinição de senha,
 início com mapa, favoritos e recentes, cotação/cupom/pagamento, acompanhamento, chat, cancelamento, avaliação,
@@ -87,9 +92,8 @@ saldos, chave Pix, saques, histórico, avaliações e contestação, perfil, sup
 | Rate limit com várias instâncias | Em memória por instância (agendadores já usam trava distribuída `schedulerLocks`); usar Redis para limite global |
 | Agregações administrativas em escala | Alguns relatórios iteram documentos (até 10–20 mil); criar contadores/rollups para volume alto |
 | Imagens/localização no chat | Tipo de mensagem extensível; não implementado (fora do MVP) |
-| Recursos de segurança em viagem (compartilhar trajeto, botão de emergência) | Apenas orientações; **sem monitoramento emergencial** |
-| Vigência futura de tarifas | Alterações valem imediatamente |
-| Redespacho após cancelamento do motorista | Corrida é cancelada e o passageiro solicita novamente |
+| Segurança em viagem | Link de acompanhamento e alerta à equipe implementados; **não há central de monitoramento 24 h** (a tela orienta ligar 190/192) |
+| Homologação no Firebase `lucenasdrive` | Script e guia prontos; **não executado** — depende do `firebaseConfig` do app Web e da conta de serviço no computador do proprietário |
 | Multiplicador de demanda automático | Apenas manual (por tarifa/região/janela) |
 | Testes de componentes dos portais | Cobertura concentrada na biblioteca compartilhada + E2E |
 | Revisões externas | Segurança (pentest), jurídica (termos, privacidade, regulação municipal) |

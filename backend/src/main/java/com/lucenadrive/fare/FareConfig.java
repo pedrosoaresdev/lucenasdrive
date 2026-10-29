@@ -24,7 +24,13 @@ public record FareConfig(
         int version,
         Instant effectiveFrom,
         String updatedBy,
-        Instant updatedAt) {
+        Instant updatedAt,
+        ScheduledChange scheduled) {
+
+    /** Alteração programada: passa a valer em effectiveFrom (nova versão criada nesse instante). */
+    public record ScheduledChange(FareService.FareConfigInput config, Instant effectiveFrom, String reason,
+                                  String scheduledBy, Instant scheduledAt) {
+    }
 
     public static String idFor(String cityId, VehicleCategory category) {
         return cityId + "_" + category.name();

@@ -307,6 +307,12 @@ public class PrivacyService {
             messages += redactChat(r.id(), uid);
         }
 
+        // Conversas arquivadas de corridas das quais o titular (motorista) desistiu.
+        for (com.lucenadrive.chat.ChatService.ChatArchive a : store.query(Query.of(Collections.RIDE_CHAT_ARCHIVES)
+                .eq("driverId", uid).limit(1_000), com.lucenadrive.chat.ChatService.ChatArchive.class)) {
+            messages += redactArchives(a.rideId(), uid);
+        }
+
         // 5) Comentários escritos pelo titular; notificações e tokens de push.
         int ratings = 0;
         for (Rating r : store.query(Query.of(Collections.RATINGS).eq("raterId", uid).limit(10_000), Rating.class)) {
@@ -368,11 +374,28 @@ public class PrivacyService {
         return Math.round(v * 100) / 100.0;
     }
 
-    private int redactChat(String rideId, String uid) {
-        if (store.get(Collections.RIDE_CHATS, rideId, RideChat.class).isEmpty()) {
-            return 0;
-        }
+    private int redactArchives(String rideId, String uid) {
         int n = 0;
+        for (com.lucenadrive.chat.ChatService.ChatArchive a : store.query(Query.of(Collections.RIDE_CHAT_ARCHIVES)
+                .eq("rideId", rideId).limit(10), com.lucenadrive.chat.ChatService.ChatArchive.class)) {
+            List<ChatMessage> redacted = new ArrayList<>();
+            for (ChatMessage m : a.messages() == null ? List.<ChatMessage>of() : a.messages()) {
+                boolean mine = uid.equals(m.senderId());
+                n += mine ? 1 : 0;
+                redacted.add(mine ? new ChatMessage(m.id(), m.rideId(), m.senderId(), m.senderRole(), m.type(),
+                        "[mensagem removida]", m.systemEvent(), m.clientMessageId(), m.createdAt()) : m);
+            }
+            store.set(Collections.RIDE_CHAT_ARCHIVES, a.id(), new com.lucenadrive.chat.ChatService.ChatArchive(a.id(),
+                    a.rideId(), a.passengerId(), a.driverId(), redacted, a.archivedAt()));
+        }
+        return n;
+    }
+
+    private int redactChat(String rideId, String uid) {
+        int n = redactArchives(rideId, uid);
+        if (store.get(Collections.RIDE_CHATS, rideId, RideChat.class).isEmpty()) {
+            return n;
+        }
         for (ChatMessage m : store.query(Query.of(Collections.messages(rideId)).eq("senderId", uid).limit(LIMIT),
                 ChatMessage.class)) {
             store.update(Collections.messages(rideId), m.id(), Map.of("text", "[mensagem removida]"));

@@ -19,7 +19,7 @@ class FareCalculatorTest {
     static FareConfig config(long minimum, long demandBp, long maxBp, List<FareConfig.TimeWindow> windows) {
         // base R$ 5,00; R$ 2,00/km; R$ 0,30/min; comissão 20%
         return new FareConfig("c_ESSENCIAL", "c", VehicleCategory.ESSENCIAL, 500, 200, 30, minimum, 700, 2000,
-                demandBp, maxBp, windows, true, 3, Instant.EPOCH, "admin", Instant.EPOCH);
+                demandBp, maxBp, windows, true, 3, Instant.EPOCH, "admin", Instant.EPOCH, null);
     }
 
     @Test

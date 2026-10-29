@@ -67,7 +67,8 @@ public class SupportService {
                 throw new ApiException(ErrorCode.VALIDATION_FAILED, "Anexo deve ser PDF ou imagem de até 10 MB.");
             }
         }
-        SupportTicket.Priority priority = switch (category) {
+        SupportTicket.Priority priority = metadata != null && metadata.containsKey("safetyAlert")
+                ? SupportTicket.Priority.URGENT : switch (category) {
             case SAFETY, INAPPROPRIATE_BEHAVIOR -> SupportTicket.Priority.HIGH;
             case PAYMENT, RIDE_ISSUE -> SupportTicket.Priority.NORMAL;
             default -> SupportTicket.Priority.LOW;

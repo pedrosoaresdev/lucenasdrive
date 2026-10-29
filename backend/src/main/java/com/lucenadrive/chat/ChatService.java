@@ -60,6 +60,33 @@ public class ChatService {
         tx.set(Collections.RIDE_CHATS, ride.id(), chat);
     }
 
+    public record ChatArchive(String id, String rideId, String passengerId, String driverId,
+                              List<ChatMessage> messages, Instant archivedAt) {
+    }
+
+    /**
+     * Redespacho: a conversa com o motorista que desistiu é arquivada (sem acesso de clientes; equipe
+     * consulta com auditoria) e removida, para que o novo motorista não leia mensagens anteriores.
+     */
+    public void archiveForRedispatch(String rideId) {
+        RideChat chat = store.get(Collections.RIDE_CHATS, rideId, RideChat.class).orElse(null);
+        if (chat == null) {
+            return;
+        }
+        List<ChatMessage> msgs = store.query(Query.of(Collections.messages(rideId))
+                .orderBy("createdAt", Query.Direction.ASC).limit(1000), ChatMessage.class);
+        Instant now = Instant.now(clock);
+        String id = rideId + "_" + now.toEpochMilli();
+        store.set(Collections.RIDE_CHAT_ARCHIVES, id,
+                new ChatArchive(id, rideId, chat.passengerId(), chat.driverId(), msgs, now));
+        msgs.forEach(m -> store.delete(Collections.messages(rideId), m.id()));
+        store.delete(Collections.RIDE_CHATS, rideId);
+    }
+
+    public List<ChatArchive> archives(String rideId) {
+        return store.query(Query.of(Collections.RIDE_CHAT_ARCHIVES).eq("rideId", rideId).limit(10), ChatArchive.class);
+    }
+
     /** Passa para somente leitura quando a corrida termina. */
     public void closeForWriting(String rideId) {
         Instant now = Instant.now(clock);
@@ -149,6 +176,15 @@ public class ChatService {
         return page(rideId, before, limit);
     }
 
+    /** Conversas arquivadas em redespachos (motoristas que desistiram), com justificativa auditada. */
+    public List<ChatArchive> adminArchives(AuthUser staff, String rideId, String reason) {
+        if (reason == null || reason.length() < 10) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Informe a justificativa do acesso (mín. 10 caracteres).");
+        }
+        audit.record(staff, "ADMIN_CHAT_ARCHIVE_ACCESS", "rideChat", rideId, null, null, reason);
+        return archives(rideId);
+    }
+
     private PageResponse<ChatMessage> page(String rideId, Long before, int limit) {
         int size = Math.min(Math.max(limit, 1), 100);
         Query q = Query.of(Collections.messages(rideId)).orderBy("createdAt", Query.Direction.DESC).limit(size);
@@ -188,6 +224,10 @@ public class ChatService {
                     store.delete(Collections.messages(c.id()), m.id());
                 }
                 store.delete(Collections.RIDE_CHATS, c.id());
+            }
+            for (ChatArchive a : store.query(Query.of(Collections.RIDE_CHAT_ARCHIVES)
+                    .where("archivedAt", Query.Op.LT, purgeBefore).limit(100), ChatArchive.class)) {
+                store.delete(Collections.RIDE_CHAT_ARCHIVES, a.id());
             }
         } catch (RuntimeException e) {
             log.warn("chat_maintenance_failed err={}", e.toString());

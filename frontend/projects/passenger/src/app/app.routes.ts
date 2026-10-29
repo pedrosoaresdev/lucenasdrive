@@ -10,6 +10,7 @@ export const routes: Routes = [
   { path: 'verificar-email', canActivate: [authGuard], loadComponent: () => import('@lucena/shared').then((m) => m.VerifyEmailPage), title: 'Confirme seu e-mail' },
   { path: 'completar-cadastro', canActivate: [authGuard], loadComponent: () => import('./auth/register.page').then((m) => m.RegisterPage), data: { complete: true }, title: 'Complete seu cadastro' },
   { path: 'termos', loadComponent: () => import('@lucena/shared').then((m) => m.LegalPage), data: { doc: 'terms' }, title: 'Termos de uso' },
+  { path: 'acompanhar/:token', loadComponent: () => import('./pages/shared-trip.page').then((m) => m.SharedTripPage), title: 'Acompanhar viagem · Lucena Drive' },
   { path: 'privacidade', loadComponent: () => import('@lucena/shared').then((m) => m.LegalPage), data: { doc: 'privacy' }, title: 'Política de privacidade' },
   {
     path: '',

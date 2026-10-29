@@ -218,7 +218,7 @@ public class RideService {
             // ---- escritas
             tx.create(Collections.RIDES, rideId, ride);
             tx.set(Collections.RIDE_DISPATCH, rideId,
-                    new RideDispatch(rideId, quote.cityId(), 0, List.of(), now, null, false));
+                    new RideDispatch(rideId, quote.cityId(), 0, List.of(), now, null, false, 0, List.of()));
             if (reservation != null) {
                 coupons.apply(tx, reservation, rideId);
             }
@@ -313,8 +313,58 @@ public class RideService {
         return cancel(auth, rideId, ActorRole.PASSENGER, reasonCode, reasonText);
     }
 
+    /** Máximo de vezes que uma corrida volta à busca após desistência de motoristas. */
+    static final int MAX_REDISPATCHES = 2;
+
+    /**
+     * Desistência do motorista antes do embarque: a corrida volta à busca (sem custo para o passageiro),
+     * excluindo quem desistiu. Após {@link #MAX_REDISPATCHES} desistências, a corrida é cancelada.
+     */
     public RideView cancelByDriver(AuthUser auth, String rideId, String reasonCode, String reasonText) {
-        return cancel(auth, rideId, ActorRole.DRIVER, reasonCode, reasonText);
+        Ride redispatched = store.transaction(tx -> {
+            Ride ride = tx.get(Collections.RIDES, rideId, Ride.class).orElseThrow(() -> ApiException.notFound("Corrida"));
+            if (!auth.uid().equals(ride.driverId())) {
+                throw ApiException.forbidden("Você não participa desta corrida.");
+            }
+            RideDispatch d = tx.get(Collections.RIDE_DISPATCH, rideId, RideDispatch.class).orElse(null);
+            if (d == null || d.redispatches() >= MAX_REDISPATCHES
+                    || !RideStateMachine.canTransition(ride.status(), RideStatus.SEARCHING_DRIVER, ActorRole.SYSTEM)) {
+                return null; // segue para o cancelamento normal
+            }
+            Optional<DriverLocation> loc = tx.get(Collections.DRIVER_LOCATIONS, auth.uid(), DriverLocation.class);
+            Optional<DriverProfile> dp = tx.get(Collections.DRIVER_PROFILES, auth.uid(), DriverProfile.class);
+            Instant now = Instant.now(clock);
+            // ---- escritas
+            Ride next = ride.toBuilder().backToSearch(now).build();
+            tx.set(Collections.RIDES, rideId, next);
+            List<String> excluded = new ArrayList<>(d.excludedDriverIds() == null ? List.of() : d.excludedDriverIds());
+            if (!excluded.contains(auth.uid())) {
+                excluded.add(auth.uid());
+            }
+            tx.set(Collections.RIDE_DISPATCH, rideId, new RideDispatch(rideId, d.cityId(), 0, List.of(), now, null, false,
+                    d.redispatches() + 1, excluded));
+            loc.filter(l -> rideId.equals(l.currentRideId()))
+                    .ifPresent(l -> tx.set(Collections.DRIVER_LOCATIONS, l.driverId(), l.withRide(null, now)));
+            dp.ifPresent(p -> tx.set(Collections.DRIVER_PROFILES, p.id(),
+                    p.toBuilder().cancelledRides(p.cancelledRides() + 1).updatedAt(now).build()));
+            events.recordInTx(tx, rideId, "DRIVER_CANCELLED_REDISPATCH", ride.status(), RideStatus.SEARCHING_DRIVER,
+                    auth.uid(), ActorRole.DRIVER, Map.of("reasonCode", String.valueOf(reasonCode),
+                            "redispatch", d.redispatches() + 1));
+            return next;
+        });
+        if (redispatched == null) {
+            return cancel(auth, rideId, ActorRole.DRIVER, reasonCode, reasonText);
+        }
+        chat.archiveForRedispatch(rideId);
+        notifications.notify(redispatched.passengerId(), NotificationType.RIDE_CANCELLED, "Buscando outro motorista",
+                "Seu motorista não pôde seguir com a corrida. Já estamos procurando outro, sem custo para você.",
+                Map.of("rideId", rideId));
+        try {
+            dispatch.dispatchNextBatch(rideId);
+        } catch (RuntimeException e) {
+            log.warn("redispatch_batch_failed ride={} err={}", rideId, e.toString());
+        }
+        return RideView.of(redispatched, RideView.Viewer.DRIVER);
     }
 
     public RideView cancelByStaff(AuthUser auth, String rideId, String reasonText) {
@@ -372,8 +422,7 @@ public class RideService {
             driverLoc.filter(l -> rideId.equals(l.currentRideId()))
                     .ifPresent(l -> tx.set(Collections.DRIVER_LOCATIONS, l.driverId(), l.withRide(null, now)));
             release.ifPresent(r -> coupons.applyRelease(tx, r));
-            disp.ifPresent(d -> tx.set(Collections.RIDE_DISPATCH, rideId, new RideDispatch(d.rideId(), d.cityId(),
-                    d.batches(), d.offeredDriverIds(), d.searchStartedAt(), d.lastBatchAt(), true)));
+            disp.ifPresent(d -> tx.set(Collections.RIDE_DISPATCH, rideId, d.finish()));
             pp.ifPresent(p -> tx.set(Collections.PASSENGER_PROFILES, p.id(), p.afterCancelledRide(now)));
             dp.ifPresent(p -> tx.set(Collections.DRIVER_PROFILES, p.id(),
                     p.toBuilder().cancelledRides(p.cancelledRides() + 1).updatedAt(now).build()));

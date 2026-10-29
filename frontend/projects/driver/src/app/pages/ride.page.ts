@@ -3,7 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import {
   ApiError, ApiService, AuthService, AvatarComponent, ChatPanelComponent, MapComponent, MapMarker, MoneyPipe,
-  PaymentLabelPipe, RealtimeService, RideStatus, RideStatusPipe, RideView, StateViewComponent, ToastService,
+  PaymentLabelPipe, RealtimeService, RideStatus, RideStatusPipe, RideView, SafetyPanelComponent, StateViewComponent,
+  ToastService,
 } from '@lucena/shared';
 import { DriverLocationService } from '../location.service';
 import { RatePassengerComponent } from './rate-passenger.component';
@@ -19,7 +20,7 @@ const NEXT: Partial<Record<RideStatus, { to: RideStatus; label: string }>> = {
 @Component({
   selector: 'app-driver-ride',
   imports: [FormsModule, MapComponent, AvatarComponent, ChatPanelComponent, MoneyPipe, RideStatusPipe, PaymentLabelPipe,
-    StateViewComponent, RatePassengerComponent],
+    StateViewComponent, RatePassengerComponent, SafetyPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!ride()) { <ld-state [state]="error() ? 'error' : 'loading'" [message]="error()" [retryable]="false" /> }
@@ -64,7 +65,11 @@ const NEXT: Partial<Record<RideStatus, { to: RideStatus; label: string }>> = {
           <div class="row">
             @if (r.status !== 'CANCELLED') { <button class="btn ghost grow" (click)="chatOpen.set(!chatOpen())">Chat</button> }
             @if (cancellable()) { <button class="btn ghost" (click)="cancelOpen.set(!cancelOpen())">Cancelar</button> }
+            @if (r.status !== 'CANCELLED' && r.status !== 'COMPLETED') {
+              <button class="btn danger" (click)="safetyOpen.set(!safetyOpen())">Segurança</button>
+            }
           </div>
+          @if (safetyOpen()) { <ld-safety-panel [rideId]="r.id" (closed)="safetyOpen.set(false)" /> }
           @if (cancelOpen()) {
             <div class="card flat stack">
               <select class="input" [(ngModel)]="reason" aria-label="Motivo do cancelamento">
@@ -74,7 +79,7 @@ const NEXT: Partial<Record<RideStatus, { to: RideStatus; label: string }>> = {
                 <option value="OTHER">Outro</option>
               </select>
               <button class="btn danger" (click)="cancel()" [disabled]="busy()">Confirmar cancelamento</button>
-              <p class="small muted">Cancelamentos frequentes afetam sua conta.</p>
+              <p class="small muted">Antes do embarque, a corrida é oferecida a outro motorista. Desistências frequentes afetam sua conta.</p>
             </div>
           }
         </section>
@@ -117,6 +122,7 @@ export class RidePage implements OnInit {
   protected readonly chatOpen = signal(false);
   protected readonly cancelOpen = signal(false);
   protected readonly rated = signal(false);
+  protected readonly safetyOpen = signal(false);
   protected reason = 'PASSENGER_NO_SHOW';
 
   protected readonly next = computed(() => (this.ride() ? NEXT[this.ride()!.status] : undefined));
@@ -173,8 +179,14 @@ export class RidePage implements OnInit {
   protected async cancel(): Promise<void> {
     this.busy.set(true);
     try {
-      await this.api.post(`/driver/rides/${this.id()}/cancel`, { reasonCode: this.reason });
+      const r = await this.api.post<RideView>(`/driver/rides/${this.id()}/cancel`, { reasonCode: this.reason });
       this.cancelOpen.set(false);
+      if (r?.status === 'SEARCHING_DRIVER') {
+        // A corrida voltou à busca para outro motorista; este motorista perde o acesso a ela.
+        this.loc.setInRide(false);
+        this.toast.show('Corrida devolvida para outro motorista. Desistências frequentes afetam sua conta.', 'info', 7000);
+        await this.router.navigateByUrl('/painel');
+      }
     } catch (e) {
       this.toast.error(ApiError.from(e).message);
     } finally {

@@ -33,9 +33,111 @@ public class FareService {
         this.clock = clock;
     }
 
+    /**
+     * Tarifa vigente agora. Se houver alteração programada já vencida e o agendador ainda não a aplicou,
+     * a nova versão é considerada imediatamente (mesmo número de versão que será gravado).
+     */
     public Optional<FareConfig> current(String cityId, VehicleCategory category) {
+        Instant now = Instant.now(clock);
         return store.get(Collections.FARE_CONFIGS, FareConfig.idFor(cityId, category), FareConfig.class)
+                .map(c -> isDue(c, now) ? materialize(c, c.scheduled(), c.scheduled().effectiveFrom()) : c)
                 .filter(FareConfig::active);
+    }
+
+    private static boolean isDue(FareConfig c, Instant now) {
+        return c.scheduled() != null && !c.scheduled().effectiveFrom().isAfter(now);
+    }
+
+    private static FareConfig materialize(FareConfig prev, FareConfig.ScheduledChange s, Instant at) {
+        FareConfigInput in = s.config();
+        return new FareConfig(prev.id(), prev.cityId(), prev.category(), in.baseFareCents(), in.perKmCents(),
+                in.perMinuteCents(), in.minimumFareCents(), in.cancellationFeeCents(), in.commissionBp(),
+                in.demandMultiplierBp(), in.maxMultiplierBp(), in.timeWindows() == null ? List.of() : in.timeWindows(),
+                in.active(), prev.version() + 1, at, s.scheduledBy(), at, null);
+    }
+
+    /** Programa uma alteração para o futuro (mín. 10 min, máx. 180 dias). Substitui agendamento anterior. */
+    public FareConfig schedule(AuthUser admin, String cityId, VehicleCategory category, FareConfigInput in,
+                               Instant effectiveFrom, String reason) {
+        validate(in);
+        Instant now = Instant.now(clock);
+        if (effectiveFrom.isBefore(now.plus(java.time.Duration.ofMinutes(10)))
+                || effectiveFrom.isAfter(now.plus(java.time.Duration.ofDays(180)))) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "A vigência deve começar entre 10 minutos e 180 dias a partir de agora.");
+        }
+        String id = FareConfig.idFor(cityId, category);
+        return store.transaction(tx -> {
+            FareConfig cur = tx.get(Collections.FARE_CONFIGS, id, FareConfig.class).orElseThrow(() -> new ApiException(
+                    ErrorCode.VALIDATION_FAILED, "Crie a tarifa vigente antes de programar uma alteração."));
+            FareConfig.ScheduledChange s = new FareConfig.ScheduledChange(in, effectiveFrom, reason, admin.uid(), now);
+            FareConfig next = withScheduled(cur, s);
+            tx.set(Collections.FARE_CONFIGS, id, next);
+            audit.recordInTx(tx, admin, "FARE_CONFIG_SCHEDULED", "fareConfig", id,
+                    cur.scheduled() == null ? null : DocMapper.toMap(cur.scheduled()), DocMapper.toMap(s), reason);
+            return next;
+        });
+    }
+
+    public FareConfig cancelScheduled(AuthUser admin, String cityId, VehicleCategory category, String reason) {
+        String id = FareConfig.idFor(cityId, category);
+        return store.transaction(tx -> {
+            FareConfig cur = tx.get(Collections.FARE_CONFIGS, id, FareConfig.class)
+                    .orElseThrow(() -> ApiException.notFound("Tarifa"));
+            if (cur.scheduled() == null) {
+                throw new ApiException(ErrorCode.INVALID_STATE_TRANSITION, "Não há alteração programada.");
+            }
+            FareConfig next = withScheduled(cur, null);
+            tx.set(Collections.FARE_CONFIGS, id, next);
+            audit.recordInTx(tx, admin, "FARE_CONFIG_SCHEDULE_CANCELLED", "fareConfig", id,
+                    DocMapper.toMap(cur.scheduled()), null, reason);
+            return next;
+        });
+    }
+
+    private static FareConfig withScheduled(FareConfig c, FareConfig.ScheduledChange s) {
+        return new FareConfig(c.id(), c.cityId(), c.category(), c.baseFareCents(), c.perKmCents(), c.perMinuteCents(),
+                c.minimumFareCents(), c.cancellationFeeCents(), c.commissionBp(), c.demandMultiplierBp(),
+                c.maxMultiplierBp(), c.timeWindows(), c.active(), c.version(), c.effectiveFrom(), c.updatedBy(),
+                c.updatedAt(), s);
+    }
+
+    /** Aplica as alterações programadas vencidas, criando a nova versão com a data de vigência. */
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelayString = "${lucena.fares.schedule-check-ms:60000}")
+    public void applyDueSchedules() {
+        if (schedulerLock != null && !schedulerLock.tryAcquire("fare-schedules", java.time.Duration.ofMinutes(2))) {
+            return;
+        }
+        Instant now = Instant.now(clock);
+        for (FareConfig c : store.query(Query.of(Collections.FARE_CONFIGS)
+                .where("scheduled.effectiveFrom", Query.Op.LTE, now).limit(100), FareConfig.class)) {
+            try {
+                store.transaction(tx -> {
+                    FareConfig cur = tx.get(Collections.FARE_CONFIGS, c.id(), FareConfig.class).orElse(null);
+                    if (cur == null || !isDue(cur, now)) {
+                        return null;
+                    }
+                    FareConfig.ScheduledChange s = cur.scheduled();
+                    FareConfig next = materialize(cur, s, s.effectiveFrom());
+                    String versionId = cur.id() + "_v" + next.version();
+                    tx.create(Collections.FARE_CONFIG_VERSIONS, versionId, new FareConfigVersion(versionId, cur.id(),
+                            next.version(), next, withScheduled(cur, null), s.scheduledBy(), now, s.reason(),
+                            s.effectiveFrom()));
+                    tx.set(Collections.FARE_CONFIGS, cur.id(), next);
+                    return null;
+                });
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(FareService.class).warn("fare_schedule_apply_failed id={} err={}",
+                        c.id(), e.toString());
+            }
+        }
+    }
+
+    private com.lucenadrive.scheduling.SchedulerLock schedulerLock;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setSchedulerLock(com.lucenadrive.scheduling.SchedulerLock schedulerLock) {
+        this.schedulerLock = schedulerLock;
     }
 
     public FareConfig requireCurrent(String cityId, VehicleCategory category) {
@@ -69,7 +171,8 @@ public class FareService {
             FareConfig next = new FareConfig(id, cityId, category, in.baseFareCents(), in.perKmCents(),
                     in.perMinuteCents(), in.minimumFareCents(), in.cancellationFeeCents(), in.commissionBp(),
                     in.demandMultiplierBp(), in.maxMultiplierBp(),
-                    in.timeWindows() == null ? List.of() : in.timeWindows(), in.active(), version, now, admin.uid(), now);
+                    in.timeWindows() == null ? List.of() : in.timeWindows(), in.active(), version, now, admin.uid(), now,
+                    previous.map(FareConfig::scheduled).orElse(null));
             String versionId = id + "_v" + version;
             tx.create(Collections.FARE_CONFIG_VERSIONS, versionId,
                     new FareConfigVersion(versionId, id, version, next, previous.orElse(null), admin.uid(), now, reason, now));

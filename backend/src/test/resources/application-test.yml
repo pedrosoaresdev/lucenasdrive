@@ -7,6 +7,8 @@ lucena:
     allow-straight-line-fallback: true
   dispatch:
     tick-ms: 3600000
+  fares:
+    schedule-check-ms: 3600000
   coupons:
     expire-check-ms: 3600000
   chat:

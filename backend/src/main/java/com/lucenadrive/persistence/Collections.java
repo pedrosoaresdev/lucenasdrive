@@ -42,6 +42,8 @@ public final class Collections {
     public static final String IDEMPOTENCY_KEYS = "idempotencyKeys";
     public static final String PRIVACY_REQUESTS = "privacyRequests";
     public static final String SCHEDULER_LOCKS = "schedulerLocks";
+    public static final String RIDE_CHAT_ARCHIVES = "rideChatArchives";
+    public static final String RIDE_SHARES = "rideShares";
 
     private Collections() {
     }

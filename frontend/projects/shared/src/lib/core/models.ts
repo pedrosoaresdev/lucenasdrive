@@ -122,6 +122,7 @@ export interface SupportTicket {
   description: string; createdAt: Instantish; updatedAt: Instantish; userId: string; userRole: string;
   history: { status: string; byUserId: string; note: string; at: Instantish }[];
   attachmentPaths?: string[];
+  metadata?: Record<string, string>;
 }
 
 export interface TicketMessage { id: string; authorId: string; fromStaff: boolean; text: string; createdAt: Instantish; }

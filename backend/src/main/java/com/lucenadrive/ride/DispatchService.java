@@ -86,7 +86,7 @@ public class DispatchService {
                 .stream()
                 .filter(l -> l.lat() != null && l.lng() != null)
                 .filter(l -> l.updatedAt() != null && l.updatedAt().isAfter(now.minus(STALE_LOCATION)))
-                .filter(l -> !disp.offeredDriverIds().contains(l.driverId()))
+                .filter(l -> !disp.excludes(l.driverId()))
                 .filter(l -> !l.driverId().equals(ride.passengerId()))
                 .map(l -> new Candidate(l, Math.round(GeoMath.haversineMeters(pickup, new GeoPoint(l.lat(), l.lng())))))
                 .filter(c -> c.distanceMeters() <= props.dispatch().radiusKm() * 1000)
@@ -126,7 +126,7 @@ public class DispatchService {
             }
             offers.forEach(o -> tx.set(Collections.RIDE_OFFERS, o.id(), o));
             tx.set(Collections.RIDE_DISPATCH, rideId, new RideDispatch(rideId, d.cityId(), d.batches() + 1, offered,
-                    d.searchStartedAt(), now, false));
+                    d.searchStartedAt(), now, false, d.redispatches(), d.excludedDriverIds()));
             return offers;
         });
         for (RideOffer o : created) {
@@ -189,8 +189,7 @@ public class DispatchService {
             others.stream().filter(o -> !o.id().equals(offerId))
                     .forEach(o -> tx.set(Collections.RIDE_OFFERS, o.id(), o.withStatus(RideOffer.Status.SUPERSEDED, now)));
             tx.set(Collections.DRIVER_LOCATIONS, driver.uid(), loc.withRide(rideId, now));
-            disp.ifPresent(d -> tx.set(Collections.RIDE_DISPATCH, rideId, new RideDispatch(d.rideId(), d.cityId(),
-                    d.batches(), d.offeredDriverIds(), d.searchStartedAt(), d.lastBatchAt(), true)));
+            disp.ifPresent(d -> tx.set(Collections.RIDE_DISPATCH, rideId, d.finish()));
             chat.openInTx(tx, next, now);
             events.recordInTx(tx, rideId, "RIDE_ACCEPTED", RideStatus.SEARCHING_DRIVER, RideStatus.ACCEPTED,
                     driver.uid(), ActorRole.DRIVER, Map.of("vehicleId", vehicle.id()));

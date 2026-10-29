@@ -313,6 +313,26 @@ async function toastText(page) {
     await drv.locator('ld-chat-panel').getByRole('button', { name: 'Fechar chat' }).click();
     await pax.locator('ld-chat-panel').getByRole('button', { name: 'Fechar chat' }).click();
 
+    // ------------------------------------------------ Segurança: compartilhar viagem e alerta
+    await pax.getByRole('button', { name: 'Segurança' }).click();
+    await pax.getByRole('button', { name: 'Gerar link' }).click();
+    const shareInput = pax.locator('input[aria-label="Link de acompanhamento"]');
+    await shareInput.waitFor({ timeout: 15000 });
+    const shareUrl = await shareInput.inputValue();
+    const guestCtx = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'pt-BR' });
+    const guest = await guestCtx.newPage();
+    await guest.goto(shareUrl);
+    await guest.getByText('Veículo').waitFor({ timeout: 15000 });
+    const guestText = await guest.locator('dl.trip').innerText();
+    await guest.screenshot({ path: path.join(OUT, '07b-contato-acompanha-viagem.png') });
+    await guestCtx.close();
+    step('Contato de confiança acompanha a viagem pelo link (sem login, dados mínimos)', /[A-Z]{3}/.test(guestText), shareUrl.replace(/[^/]+$/, '…'));
+    await pax.locator('textarea[aria-label="O que está acontecendo"]').fill('Teste do roteiro de aceitação (fictício).');
+    await pax.getByRole('button', { name: 'Enviar alerta de segurança' }).click();
+    await pax.getByRole('button', { name: 'Alerta enviado' }).waitFor({ timeout: 15000 });
+    await pax.locator('ld-safety-panel').getByRole('button', { name: 'Fechar' }).click();
+    step('Alerta de segurança registrado com prioridade máxima', true);
+
     // ------------------------------------------------ Execução da corrida
     for (const label of ['Iniciar deslocamento ao embarque', 'Cheguei ao embarque', 'Iniciar viagem', 'Finalizar viagem']) {
       await drv.getByRole('button', { name: label }).click();
@@ -401,7 +421,7 @@ async function toastText(page) {
     ]);
     const exported = JSON.parse(fs.readFileSync(await exportFile.path(), 'utf8'));
     step('Titular baixa a cópia dos próprios dados', exported.account?.email === paxEmail
-      && exported.ridesAsPassenger?.length === 1 && exported.supportTickets?.length === 1, exportFile.suggestedFilename());
+      && exported.ridesAsPassenger?.length === 1 && exported.supportTickets?.length === 2, exportFile.suggestedFilename());
 
     await pax.getByRole('button', { name: 'Excluir conta' }).click();
     await pax.getByRole('button', { name: 'Confirmar' }).click();

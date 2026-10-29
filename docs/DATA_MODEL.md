@@ -83,6 +83,7 @@ Leitura: `request.auth.uid in participantIds`. Sem CPF, telefone ou e-mail. Rete
 mantidos mesmo com suspensão de contas (obrigações legais/fiscais); prazo a definir com o jurídico.
 
 ### `rideDispatch/{rideId}` — estado interno do despacho
+`redispatches` (desistências de motoristas antes do embarque) e `excludedDriverIds` (quem desistiu não recebe a corrida de novo).
 `batches, offeredDriverIds[], searchStartedAt, lastBatchAt, finished`. Sem leitura (evita expor IDs de outros motoristas).
 
 ### `rideOffers/{rideId}_{driverId}`
@@ -116,7 +117,7 @@ obrigatória + auditoria `ADMIN_CHAT_ACCESS`.
 |---|---|---|
 | `cities/{slug-uf}` | name, state, ibgeCode, center, active, timezone | não (lista pública via `/public/config`) |
 | `serviceAreas/{id}` | cityId, name, type (COVERAGE/PICKUP_ZONE/RESTRICTED/FARE_REGION), polygon[{lat,lng}], active, fareMultiplierBp | não |
-| `fareConfigs/{cityId}_{CATEGORIA}` | tarifa vigente + version, effectiveFrom, updatedBy | não |
+| `fareConfigs/{cityId}_{CATEGORIA}` | tarifa vigente + version, effectiveFrom, updatedBy, `scheduled` (alteração programada: config, effectiveFrom, reason) | não |
 | `fareConfigVersions/{configId}_v{n}` | snapshot, previous, changedBy, changedAt, reason, effectiveFrom (imutável) | não |
 | `coupons/{CODIGO}` | type, percentBp/amountCents, maxDiscountCents, minFareCents, startsAt/endsAt, maxRedemptions, maxPerUser, redemptionCount, budgetCents, budgetUsedCents, cityIds, categories, newPassengersOnly, eligibleUserIds, active | não |
 | `couponRedemptions/{CODIGO}_{rideId}` | userId, rideId, discountCents, status (RESERVED/CONFIRMED/RELEASED) | não |
@@ -150,6 +151,8 @@ Lançamentos nunca são apagados; correções geram `ADJUSTMENT`/`REVERSAL`. Sem
 | `adminSessions/{id}` | uid, createdAt, expiresAt, mfaVerifiedAt, ip, userAgent, revoked | não |
 | `securityEvents/{id}` | uid, type (MFA_SUCCESS/FAILURE/LOCKED, NEW_DEVICE, STEP_UP, SESSION_REVOKED…), ip, userAgent, at | não |
 | `platformSettings` | reservado para parâmetros globais futuros | não |
+| `rideShares/{sha256(token)}` | rideId, passengerId, revoked, createdAt, expiresAt | não (consulta pública via API) |
+| `rideChatArchives/{rideId}_{ms}` | conversa com motorista que desistiu (redespacho); apagada após a retenção do chat | não |
 | `schedulerLocks/{tarefa}` | owner (instância), until — lease das tarefas agendadas (despacho 30 s; cupons, chat e documentos 10 min) | não |
 
 ## Ajustes em relação à lista solicitada (justificativas)

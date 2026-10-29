@@ -79,6 +79,13 @@ public class AdminRidesController {
         return chat.adminHistory(staff, rideId, reason, before, limit);
     }
 
+    @GetMapping("/{rideId}/chat-archives")
+    @PreAuthorize("hasAnyRole('SUPPORT','ADMIN','OWNER')")
+    public List<ChatService.ChatArchive> chatArchives(@AuthenticationPrincipal AuthUser staff, @PathVariable String rideId,
+                                                      @RequestParam String reason) {
+        return chat.adminArchives(staff, rideId, reason);
+    }
+
     @PostMapping("/{rideId}/cancel")
     @PreAuthorize("hasAnyRole('SUPPORT','ADMIN','OWNER')")
     public RideView cancel(@AuthenticationPrincipal AuthUser staff, @PathVariable String rideId,

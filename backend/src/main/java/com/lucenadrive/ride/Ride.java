@@ -128,6 +128,18 @@ public record Ride(
             participantIds = List.of(b.passengerId, id);
             return this;
         }
+        /** Remove o motorista e volta à busca, preservando o horário da solicitação (redespacho). */
+        public Builder backToSearch(Instant at) {
+            driverId = null;
+            driver = null;
+            participantIds = List.of(b.passengerId);
+            driverPosition = null;
+            etaSeconds = null;
+            status = RideStatus.SEARCHING_DRIVER;
+            timeline = new Timeline(timeline.requestedAt(), null, null, null, null, null, null);
+            updatedAt = at;
+            return this;
+        }
         public Builder status(RideStatus v, Instant at) {
             status = v;
             timeline = timeline.at(v, at);

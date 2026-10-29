@@ -40,6 +40,10 @@ public final class RideStateMachine {
         allow(DRIVER_ARRIVED, IN_PROGRESS, ActorRole.DRIVER);
         allow(DRIVER_ARRIVED, CANCELLED, ActorRole.PASSENGER, ActorRole.DRIVER, ActorRole.STAFF);
         allow(IN_PROGRESS, COMPLETED, ActorRole.DRIVER);
+        // Redespacho: o motorista desistiu antes do embarque e a corrida volta à busca (executado pelo sistema).
+        allow(ACCEPTED, SEARCHING_DRIVER, ActorRole.SYSTEM);
+        allow(DRIVER_ARRIVING, SEARCHING_DRIVER, ActorRole.SYSTEM);
+        allow(DRIVER_ARRIVED, SEARCHING_DRIVER, ActorRole.SYSTEM);
         // Viagem em andamento só pode ser cancelada pela equipe (ocorrência registrada).
         allow(IN_PROGRESS, CANCELLED, ActorRole.STAFF);
     }

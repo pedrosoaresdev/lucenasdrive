@@ -6,7 +6,9 @@ import { adminActions } from '../core/admin-actions';
 interface TimeWindow { daysOfWeek: number[]; start: string; end: string; multiplierBp: number; label: string; }
 interface FareConfig { id: string; cityId: string; category: string; baseFareCents: number; perKmCents: number; perMinuteCents: number;
   minimumFareCents: number; cancellationFeeCents: number; commissionBp: number; demandMultiplierBp: number; maxMultiplierBp: number;
-  timeWindows: TimeWindow[]; active: boolean; version: number; updatedBy: string; updatedAt: number; }
+  timeWindows: TimeWindow[]; active: boolean; version: number; updatedBy: string; updatedAt: number;
+  scheduled?: { effectiveFrom: number; reason: string; scheduledBy: string; config: { baseFareCents: number; perKmCents: number;
+    perMinuteCents: number; commissionBp: number } } | null; }
 interface Version { id: string; version: number; changedBy: string; changedAt: number; reason: string; snapshot: FareConfig; previous: FareConfig | null; }
 interface Form { base: number; perKm: number; perMin: number; minimum: number; cancel: number; commission: number; demand: number; max: number; active: boolean; windows: TimeWindow[]; }
 
@@ -59,7 +61,13 @@ const CATEGORIES = [{ id: 'ESSENCIAL', name: 'Lucena Essencial' }, { id: 'CONFOR
                 <button class="btn ghost sm" (click)="form.windows.push({ daysOfWeek: [1,2,3,4,5,6,7], start: '22:00', end: '05:00', multiplierBp: 12000, label: 'Noturno' })">Adicionar janela</button>
               </fieldset>
               <label class="check"><input type="checkbox" [(ngModel)]="form.active" /> <span>Categoria ativa nesta cidade</span></label>
-              <div class="row"><button class="btn primary" (click)="save(cat.id)">Salvar nova versão</button>
+              @if (cfg) {
+                <label class="when">Vigência
+                  <select class="input" [(ngModel)]="when"><option value="now">Imediata</option><option value="later">Programar data e hora</option></select>
+                  @if (when === 'later') { <input class="input" type="datetime-local" [(ngModel)]="effectiveAt" aria-label="Início da vigência" /> }
+                </label>
+              }
+              <div class="row"><button class="btn primary" (click)="save(cat.id)">{{ when === 'later' ? 'Programar alteração' : 'Salvar nova versão' }}</button>
                 <button class="btn ghost" (click)="editing.set(null)">Cancelar</button></div>
               <p class="small muted">Corridas já solicitadas mantêm a versão de tarifa em que foram cotadas.</p>
             } @else if (cfg) {
@@ -70,7 +78,15 @@ const CATEGORIES = [{ id: 'ESSENCIAL', name: 'Lucena Essencial' }, { id: 'CONFOR
                 <div><dt>Demanda / teto</dt><dd>{{ cfg.demandMultiplierBp / 10000 }}× / {{ cfg.maxMultiplierBp / 10000 }}×</dd></div>
                 <div><dt>Janelas</dt><dd>{{ cfg.timeWindows.length }}</dd></div>
               </dl>
-              <p class="small muted">Atualizada em {{ cfg.updatedAt | dt }} por {{ cfg.updatedBy }}</p>
+              <p class="small muted">Versão {{ cfg.version }} · atualizada em {{ cfg.updatedAt | dt }} por {{ cfg.updatedBy }}</p>
+              @if (cfg.scheduled; as s) {
+                <div class="alert info small">
+                  <strong>Alteração programada para {{ s.effectiveFrom | dt }}</strong><br />
+                  base {{ s.config.baseFareCents | money }}, km {{ s.config.perKmCents | money }}, minuto {{ s.config.perMinuteCents | money }},
+                  comissão {{ s.config.commissionBp / 100 }}% · “{{ s.reason }}”
+                  @if (canEdit()) { <br /><button class="btn link sm" (click)="cancelScheduled(cat.id)">Cancelar agendamento</button> }
+                </div>
+              }
             }
             <div class="row">
               @if (canEdit() && editing() !== cat.id) { <button class="btn ghost sm" (click)="edit(cat.id)">{{ cfg ? 'Editar' : 'Configurar' }}</button> }
@@ -111,6 +127,8 @@ export default class FaresPage implements OnInit {
   protected readonly canEdit = () => this.a.session.can('ADMIN', 'OWNER');
   protected cityId = '';
   protected form: Form = this.empty();
+  protected when: 'now' | 'later' = 'now';
+  protected effectiveAt = '';
 
   async ngOnInit(): Promise<void> {
     this.cities.set(await this.api.get('/admin/cities'));
@@ -143,6 +161,8 @@ export default class FaresPage implements OnInit {
     this.form = c ? { base: c.baseFareCents / 100, perKm: c.perKmCents / 100, perMin: c.perMinuteCents / 100, minimum: c.minimumFareCents / 100,
       cancel: c.cancellationFeeCents / 100, commission: c.commissionBp / 100, demand: c.demandMultiplierBp / 10000,
       max: c.maxMultiplierBp / 10000, active: c.active, windows: structuredClone(c.timeWindows ?? []) } : this.empty();
+    this.when = 'now';
+    this.effectiveAt = '';
     this.editing.set(cat);
   }
 
@@ -157,13 +177,30 @@ export default class FaresPage implements OnInit {
       minimumFareCents: cents(f.minimum), cancellationFeeCents: cents(f.cancel), commissionBp: Math.round(Number(f.commission) * 100),
       demandMultiplierBp: Math.round(Number(f.demand) * 10000), maxMultiplierBp: Math.round(Number(f.max) * 10000),
       timeWindows: f.windows, active: f.active };
-    const ok = await this.a.withReason('Salvar nova versão da tarifa',
-      (reason) => this.api.put(`/admin/cities/${this.cityId}/fares/${cat}`, { config, reason }),
-      { ok: 'Nova versão tarifária salva.', message: 'Operação crítica: pode ser solicitada a confirmação do segundo fator.' });
+    let effectiveFrom: string | null = null;
+    if (this.when === 'later') {
+      const d = new Date(this.effectiveAt);
+      if (!this.effectiveAt || Number.isNaN(d.getTime()) || d.getTime() < Date.now() + 10 * 60_000) {
+        this.a.toast.error('Escolha uma data/hora de início pelo menos 10 minutos à frente.');
+        return;
+      }
+      effectiveFrom = d.toISOString();
+    }
+    const ok = await this.a.withReason(effectiveFrom ? 'Programar alteração da tarifa' : 'Salvar nova versão da tarifa',
+      (reason) => this.api.put(`/admin/cities/${this.cityId}/fares/${cat}`, { config, reason, effectiveFrom }),
+      { ok: effectiveFrom ? 'Alteração programada.' : 'Nova versão tarifária salva.',
+        message: 'Operação crítica: pode ser solicitada a confirmação do segundo fator.' });
     if (ok) {
       this.configs.set(await this.api.get<FareConfig[]>(`/admin/cities/${this.cityId}/fares`));
       this.editing.set(null);
     }
+  }
+
+  protected async cancelScheduled(cat: string): Promise<void> {
+    const ok = await this.a.withReason('Cancelar alteração programada',
+      (reason) => this.api.post(`/admin/cities/${this.cityId}/fares/${cat}/cancel-scheduled`, { reason }),
+      { ok: 'Agendamento cancelado.' });
+    if (ok) this.configs.set(await this.api.get<FareConfig[]>(`/admin/cities/${this.cityId}/fares`));
   }
 
   protected async history(id: string): Promise<void> {

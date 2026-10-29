@@ -111,4 +111,11 @@ describe('notificações e coleções internas', () => {
     await assertFails(getDoc(doc(as('pax1'), 'adminAuditLogs/a1')));
     await assertFails(setDoc(doc(as('pax1'), 'coupons/GRATIS'), { percentBp: 10000 }));
   });
+
+  it('links de compartilhamento, conversas arquivadas e travas internas são negados', async () => {
+    await assertFails(getDoc(doc(as('pax1'), 'rideShares/s1')));
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'rideShares/s1')));
+    await assertFails(getDocs(collection(as('drv1'), 'rideChatArchives')));
+    await assertFails(setDoc(doc(as('pax1'), 'schedulerLocks/dispatch'), { owner: 'x' }));
+  });
 });

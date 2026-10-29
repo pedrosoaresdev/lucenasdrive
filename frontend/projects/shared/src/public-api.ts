@@ -23,6 +23,7 @@ export * from './lib/ui/integration-pending.component';
 export * from './lib/ui/map.component';
 export * from './lib/ui/place-search.component';
 export * from './lib/ui/chat-panel.component';
+export * from './lib/ui/safety-panel.component';
 export * from './lib/ui/notification-bell.component';
 export * from './lib/core/providers';
 export * from './lib/auth/auth-layout.component';

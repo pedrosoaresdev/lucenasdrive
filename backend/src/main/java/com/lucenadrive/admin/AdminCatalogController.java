@@ -68,7 +68,11 @@ public class AdminCatalogController {
     }
 
     public record FareRequest(@NotNull FareService.FareConfigInput config,
-                              @NotBlank @Size(min = 10, max = 500) String reason) {
+                              @NotBlank @Size(min = 10, max = 500) String reason,
+                              java.time.Instant effectiveFrom) {
+    }
+
+    public record ReasonBody(@NotBlank @Size(min = 10, max = 500) String reason) {
     }
 
     public record CouponActiveRequest(boolean active, @Size(max = 300) String reason) {
@@ -129,7 +133,18 @@ public class AdminCatalogController {
     public FareConfig upsertFare(@AuthenticationPrincipal AuthUser admin, @PathVariable String cityId,
                                  @PathVariable VehicleCategory category, @Valid @RequestBody FareRequest body) {
         guards.requireRecentMfa(admin);
+        if (body.effectiveFrom() != null) {
+            return fares.schedule(admin, cityId, category, body.config(), body.effectiveFrom(), body.reason());
+        }
         return fares.upsert(admin, cityId, category, body.config(), body.reason());
+    }
+
+    @PostMapping("/cities/{cityId}/fares/{category}/cancel-scheduled")
+    @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
+    public FareConfig cancelScheduledFare(@AuthenticationPrincipal AuthUser admin, @PathVariable String cityId,
+                                          @PathVariable VehicleCategory category, @Valid @RequestBody ReasonBody body) {
+        guards.requireRecentMfa(admin);
+        return fares.cancelScheduled(admin, cityId, category, body.reason());
     }
 
     @GetMapping("/fares/{configId}/history")

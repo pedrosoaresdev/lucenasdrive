@@ -31,6 +31,18 @@ import { adminActions } from '../core/admin-actions';
           <div class="row between"><h2>{{ t.subject }}</h2><span class="badge info">{{ statusLabel[t.status] }}</span></div>
           <p class="small muted">{{ categories[t.category] }} · aberto por <a [routerLink]="[t.userRole === 'DRIVER' ? '/motoristas' : '/passageiros', t.userId]">{{ t.userRole }}</a>
             @if (t.rideId) { · <a [routerLink]="['/corridas', t.rideId]">corrida</a> }</p>
+          @if (t.metadata?.['safetyAlert']) {
+            <div class="alert err small stack">
+              <strong>Alerta de segurança acionado no app</strong>
+              <span>Etapa da corrida: {{ t.metadata!['rideStatus'] }}</span>
+              @if (t.metadata!['lastLat']) {
+                <span>Última posição conhecida ({{ t.metadata!['positionAt'] }}):
+                  <a [href]="'https://www.google.com/maps?q=' + t.metadata!['lastLat'] + ',' + t.metadata!['lastLng']" target="_blank" rel="noopener">
+                    {{ t.metadata!['lastLat'] }}, {{ t.metadata!['lastLng'] }}</a></span>
+              }
+              <span>Procedimento: contatar o usuário imediatamente; em risco, orientar a ligar 190 e registrar a ocorrência.</span>
+            </div>
+          }
           <p class="pre">{{ t.description }}</p>
           @if (t.attachmentPaths?.length) {
             <div class="row">

@@ -59,3 +59,5 @@ Resultados da última execução em [docs/STATUS.md](docs/STATUS.md#testes-execu
 | [LGPD.md](docs/LGPD.md) | Tratamento de dados pessoais e procedimentos |
 | [manuals/](docs/manuals) | Manuais do administrador, do motorista e do passageiro |
 | [legal/](docs/legal) | Modelos de Termos de Uso e Política de Privacidade (sujeitos a revisão jurídica) |
+
+**Homologação no Firebase `lucenasdrive`:** veja [docs/HOMOLOGACAO.md](docs/HOMOLOGACAO.md) (`scripts/homolog-up.ps1`).

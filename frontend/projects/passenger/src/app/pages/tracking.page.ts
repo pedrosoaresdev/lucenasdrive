@@ -5,6 +5,7 @@ import {
   ApiError, ApiService, AuthService, AvatarComponent, ChatPanelComponent, MapComponent, MapMarker, MinutesPipe,
   MoneyPipe, PaymentLabelPipe, RealtimeService, RideStatusPipe, RideView, StateViewComponent, ToastService,
   rideStatusTone,
+  SafetyPanelComponent,
 } from '@lucena/shared';
 
 const CANCELLABLE = ['SEARCHING_DRIVER', 'ACCEPTED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED'];
@@ -16,7 +17,7 @@ const CANCELLABLE = ['SEARCHING_DRIVER', 'ACCEPTED', 'DRIVER_ARRIVING', 'DRIVER_
 @Component({
   selector: 'app-tracking',
   imports: [FormsModule, RouterLink, MapComponent, AvatarComponent, ChatPanelComponent, MoneyPipe, MinutesPipe,
-    RideStatusPipe, PaymentLabelPipe, StateViewComponent],
+    RideStatusPipe, PaymentLabelPipe, StateViewComponent, SafetyPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!ride()) {
@@ -75,7 +76,11 @@ const CANCELLABLE = ['SEARCHING_DRIVER', 'ACCEPTED', 'DRIVER_ARRIVING', 'DRIVER_
             }
             @if (canCancel()) { <button class="btn ghost" (click)="cancelOpen.set(true)">Cancelar</button> }
             <a class="btn ghost" routerLink="/suporte" [queryParams]="{ corrida: r.id }">Ajuda</a>
+            @if (r.status !== 'CANCELLED' && r.status !== 'COMPLETED') {
+              <button class="btn danger" (click)="safetyOpen.set(!safetyOpen())">Segurança</button>
+            }
           </div>
+          @if (safetyOpen()) { <ld-safety-panel [rideId]="r.id" [canShare]="true" (closed)="safetyOpen.set(false)" /> }
 
           @if (cancelOpen()) {
             <div class="card flat stack" role="dialog" aria-label="Cancelar corrida">
@@ -151,6 +156,7 @@ export class TrackingPage implements OnInit {
   protected readonly ride = signal<RideView | null>(null);
   protected readonly loadError = signal('');
   protected readonly chatOpen = signal(false);
+  protected readonly safetyOpen = signal(false);
   protected readonly cancelOpen = signal(false);
   protected readonly busy = signal(false);
   protected reason = 'CHANGED_MIND';
@@ -196,6 +202,10 @@ export class TrackingPage implements OnInit {
           void this.router.navigate(['/corrida', r.id, 'avaliar']);
         } else if (prev && prev !== r.status && r.status === 'ACCEPTED') {
           this.toast.ok('Motorista a caminho!');
+        } else if (prev && ['ACCEPTED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED'].includes(prev) && r.status === 'SEARCHING_DRIVER') {
+          // Redespacho: o motorista desistiu antes do embarque; a busca recomeça sem custo.
+          this.chatOpen.set(false);
+          this.toast.show('Seu motorista não pôde seguir. Estamos procurando outro, sem custo para você.', 'info', 8000);
         }
       },
       error: () => this.loadError.set('Sem acesso a esta corrida ou falha de conexão.'),
