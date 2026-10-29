@@ -58,9 +58,11 @@ public class RideService {
     /** Tolerância após o aceite em que o passageiro cancela sem taxa. */
     static final Duration FREE_CANCEL_WINDOW = Duration.ofMinutes(2);
 
+    /** highDemand: o preço dinâmico por demanda está ativo nesta cotação (aviso obrigatório ao passageiro). */
     public record QuoteView(String quoteId, VehicleCategory category, String categoryName, long totalCents,
                             long discountCents, long finalCents, boolean minimumApplied, long multiplierBp,
-                            String couponCode, String couponMessage, long availableDrivers, Instant expiresAt) {
+                            String couponCode, String couponMessage, long availableDrivers, Instant expiresAt,
+                            boolean highDemand) {
     }
 
     public record EstimateResult(String cityId, String cityName, Ride.RouteInfo route, boolean approximateRoute,
@@ -84,6 +86,12 @@ public class RideService {
     private final SecurityGuards guards;
     private final LucenaProperties props;
     private final Clock clock;
+    private com.lucenadrive.demand.DemandService demand;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setDemandService(com.lucenadrive.demand.DemandService demand) {
+        this.demand = demand;
+    }
 
     public RideService(DocStore store, GeoService geo, RouteService routes, FareService fares, CouponService coupons,
                        ChatService chat, NotificationService notifications, RideEventService events,
@@ -114,6 +122,7 @@ public class RideService {
         Ride.RouteInfo routeInfo = new Ride.RouteInfo(route.distanceMeters(), route.durationSeconds(),
                 route.encodedPolyline(), route.source());
         long regionBp = geo.regionMultiplierBp(city.id(), origin.point());
+        long dynamicBp = demand.currentMultiplierBp(city.id());
         Instant now = Instant.now(clock);
         Instant expiresAt = now.plus(props.dispatch().quoteTtl());
         long completed = store.get(Collections.PASSENGER_PROFILES, auth.uid(), PassengerProfile.class)
@@ -125,7 +134,7 @@ public class RideService {
                 continue;
             }
             long multiplier = FareCalculator.effectiveMultiplier(cfg.get(), regionBp,
-                    now.atZone(ZoneId.of(city.timezone() != null ? city.timezone() : "America/Sao_Paulo")));
+                    now.atZone(ZoneId.of(city.timezone() != null ? city.timezone() : "America/Sao_Paulo")), dynamicBp);
             FareBreakdown base = FareCalculator.calculate(cfg.get(), route.distanceMeters(), route.durationSeconds(),
                     multiplier, 0);
             String normalizedCoupon = null;
@@ -152,7 +161,7 @@ public class RideService {
                     .eq("cityId", city.id()).where("categories", Query.Op.ARRAY_CONTAINS, category));
             quotes.add(new QuoteView(quote.id(), category, category.displayName(), fare.totalCents(), fare.discountCents(),
                     fare.finalCents(), fare.minimumApplied(), multiplier, normalizedCoupon, couponMessage, available,
-                    expiresAt));
+                    expiresAt, dynamicBp > cfg.get().demandMultiplierBp() && dynamicBp > 10_000));
         }
         if (quotes.isEmpty()) {
             throw new ApiException(ErrorCode.FARE_NOT_CONFIGURED, "Nenhuma categoria disponível nesta cidade no momento.");

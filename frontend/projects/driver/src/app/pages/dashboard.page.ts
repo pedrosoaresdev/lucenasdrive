@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, injec
 import { Router, RouterLink } from '@angular/router';
 import { where } from 'firebase/firestore';
 import {
-  ApiError, ApiService, AuthService, KmPipe, MapComponent, MapMarker, MinutesPipe, MoneyPipe, RealtimeService,
+  ApiError, ApiService, AuthService, HeatCell, KmPipe, MapComponent, MapMarker, MinutesPipe, MoneyPipe, RealtimeService,
   RideOffer, RideView, StateViewComponent, ToastService, toDate,
 } from '@lucena/shared';
 import { DriverLocationService } from '../location.service';
@@ -22,7 +22,7 @@ interface Finance { periods: { period: string; rides: number; earningsCents: num
     @else {
       @let o = overview()!;
       <div class="layout">
-        <ld-map class="map" [markers]="markers()" [center]="center()" />
+        <ld-map class="map" [markers]="markers()" [center]="center()" [heat]="showHeat() ? heat() : []" />
         <section class="sheet panel">
           @if (o.profile.status !== 'APPROVED') {
             <div class="alert warn">
@@ -64,6 +64,11 @@ interface Finance { periods: { period: string; rides: number; earningsCents: num
           }
           @if (online() && !offers().length && !o.currentRideId) {
             <p class="waiting muted small pulse">Aguardando ofertas…</p>
+          }
+          @if (online()) {
+            <label class="check small heat-toggle"><input type="checkbox" [checked]="showHeat()" (change)="showHeat.set(!showHeat())" />
+              <span>Mapa de calor de demanda
+                {{ heat().length ? '(' + heat().length + ' região(ões) com pedidos nos últimos 30 min)' : '(sem concentração de pedidos agora)' }}</span></label>
           }
 
           <div class="grid kpis">
@@ -114,6 +119,9 @@ export class DashboardPage implements OnInit {
   protected readonly finance = signal<Finance | null>(null);
   protected readonly offers = signal<RideOffer[]>([]);
   protected readonly online = signal(false);
+  /** Regiões com pedidos recentes (agregadas, sem identificar passageiros). */
+  protected readonly heat = signal<HeatCell[]>([]);
+  protected readonly showHeat = signal(true);
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   private readonly now = signal(Date.now());
@@ -131,6 +139,11 @@ export class DashboardPage implements OnInit {
     return list;
   });
 
+  protected loadHeat(): void {
+    if (!this.online()) return;
+    void this.api.get<HeatCell[]>('/driver/demand-heatmap').then((h) => this.heat.set(h)).catch(() => undefined);
+  }
+
   ngOnInit(): void {
     void this.load();
     const uid = this.auth.me()!.uid;
@@ -140,6 +153,9 @@ export class DashboardPage implements OnInit {
         if (fresh.length > this.offers().length) navigator.vibrate?.(300);
         this.offers.set(fresh);
       }, error: () => undefined });
+    this.loadHeat();
+    const heatTimer = setInterval(() => this.loadHeat(), 60_000);
+    this.destroyRef.onDestroy(() => clearInterval(heatTimer));
     const timer = setInterval(() => {
       this.now.set(Date.now());
       this.offers.update((l) => l.filter((o) => (toDate(o.expiresAt)?.getTime() ?? 0) > Date.now()));
@@ -156,6 +172,7 @@ export class DashboardPage implements OnInit {
       const o = await this.api.get<Overview>('/drivers/me');
       this.overview.set(o);
       this.online.set(o.online);
+      this.loadHeat();
       this.loc.setInRide(!!o.currentRideId);
       if (o.online) this.loc.start();
       this.finance.set(await this.api.get<Finance>('/drivers/me/finance').catch(() => null));
@@ -181,6 +198,7 @@ export class DashboardPage implements OnInit {
         await this.api.post('/drivers/me/online', { lat: pos.coords.latitude, lng: pos.coords.longitude });
         this.loc.start();
         this.online.set(true);
+        this.loadHeat();
         this.toast.ok('Você está online.');
       }
     } catch (e) {

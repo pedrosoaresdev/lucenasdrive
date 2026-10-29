@@ -41,6 +41,14 @@ public final class FareCalculator {
 
     /** Multiplicador efetivo = demanda × região × janela horária vigente (limitado pelo teto). */
     public static long effectiveMultiplier(FareConfig cfg, long regionBp, ZonedDateTime localNow) {
+        return effectiveMultiplier(cfg, regionBp, localNow, Money.BP_ONE);
+    }
+
+    /**
+     * Com preço dinâmico: o fator de demanda é o maior entre o manual da tarifa e o dinâmico da cidade
+     * (não se acumulam); o resultado continua limitado pelo teto da tarifa.
+     */
+    public static long effectiveMultiplier(FareConfig cfg, long regionBp, ZonedDateTime localNow, long dynamicBp) {
         long windowBp = Money.BP_ONE;
         if (cfg.timeWindows() != null) {
             for (FareConfig.TimeWindow w : cfg.timeWindows()) {
@@ -50,7 +58,7 @@ public final class FareCalculator {
             }
         }
         long combined = Money.applyBasisPoints(Money.applyBasisPoints(
-                Math.max(Money.BP_ONE, cfg.demandMultiplierBp()), regionBp), windowBp);
+                Math.max(Money.BP_ONE, Math.max(cfg.demandMultiplierBp(), dynamicBp)), regionBp), windowBp);
         return Math.min(combined, cfg.maxMultiplierBp());
     }
 

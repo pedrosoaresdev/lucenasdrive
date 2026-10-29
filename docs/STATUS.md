@@ -7,12 +7,12 @@ Resultados reais da última execução neste repositório:
 
 | Suíte | Comando | Resultado |
 |---|---|---|
-| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **63 testes, 0 falhas** (inclui rotas OSRM, plano B e CSV) |
-| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **17 testes, 0 falhas** (relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
+| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **64 testes, 0 falhas** (inclui rotas OSRM, plano B, CSV e degraus de demanda) |
+| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **18 testes, 0 falhas** (preço dinâmico e mapa de calor, relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
 | Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** (inclui negação de acesso a `presence` e `locationConsents`) |
-| Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **16 testes, 0 falhas** (inclui busca OpenStreetMap e polyline) |
+| Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **21 testes, 0 falhas** (inclui busca OpenStreetMap, polyline, convite de localização e painel de segurança) |
 | Build de produção dos 3 portais | `ng build …` | **sem erros nem avisos** |
-| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **34/34 etapas** (com `E2E_MOCK_OSM=1`; inclui localização no chat, exportação CSV, edição de região e cidade/IP no "O olho de Deus") |
+| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **35/35 etapas** (com `E2E_MOCK_OSM=1`; inclui demanda × oferta, localização no chat, exportação CSV, edição de região e cidade/IP no "O olho de Deus") |
 
 Destaques dos testes de integração:
 - **Aceite concorrente:** 3 motoristas aceitam a mesma corrida simultaneamente → exatamente 1 sucesso (200) e 2 recusas (409).
@@ -76,6 +76,11 @@ alterações de tarifa programadas com data de vigência (versão criada no inst
 de quem ativou, no app, o compartilhamento opcional de localização. Somente ADMIN/OWNER; acessos auditados;
 consentimento revogável a qualquer momento em Perfil. O mapa exige a chave de navegador do Google Maps.
 
+**Etapa 5:** preço dinâmico por demanda **opcional** por cidade (degraus por razão pedidos ÷ motoristas livres, teto,
+janela; aviso "Alta demanda" ao passageiro antes de confirmar; auditado), mapa de calor agregado da demanda para
+motoristas e admin (quadras de ~550 m, mínimo de 2 passageiros por quadra), limpeza automática de cotações vencidas,
+página "Demanda e preço dinâmico" no admin e testes de componentes.
+
 **Etapa 4:** localização no chat da corrida ("estou aqui", com link do mapa); exportação de planilhas (CSV para
 Excel: corridas e lançamentos financeiros, com proteção contra fórmulas e auditoria); painel com indicadores
 isolados; scripts do Windows encerram execuções antigas; portais em pt-BR sem tradução automática; erros com
@@ -113,8 +118,8 @@ saldos, chave Pix, saques, histórico, avaliações e contestação, perfil, sup
 | Imagens no chat | Localização no chat implementada; imagens dependem do Storage (plano Blaze) |
 | Segurança em viagem | Link de acompanhamento e alerta à equipe implementados; **não há central de monitoramento 24 h** (a tela orienta ligar 190/192) |
 | Homologação no Firebase `lucenasdrive` | **Em uso** pelo proprietário (Auth, Firestore em São Paulo, regras e índices publicados); Storage pendente (plano Blaze) |
-| Multiplicador de demanda automático | Apenas manual (por tarifa/região/janela) |
-| Testes de componentes dos portais | Cobertura concentrada na biblioteca compartilhada + E2E |
+| Preço dinâmico por demanda | Implementado e **desligado por padrão**; ligar exige decisão comercial e revisão jurídica (transparência ao consumidor) |
+| Testes de componentes dos portais | Biblioteca compartilhada (21 testes, incl. convite de localização e painel de segurança) + E2E; telas específicas de cada portal cobertas pelo E2E |
 | Revisões externas | Segurança (pentest), jurídica (termos, privacidade, regulação municipal) |
 
 ## Próximas etapas sugeridas

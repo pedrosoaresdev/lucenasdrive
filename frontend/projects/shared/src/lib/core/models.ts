@@ -46,6 +46,8 @@ export interface Quote {
   quoteId: string; category: VehicleCategory; categoryName: string; totalCents: number; discountCents: number;
   finalCents: number; minimumApplied: boolean; multiplierBp: number; couponCode: string | null;
   couponMessage: string | null; availableDrivers: number; expiresAt: string;
+  /** preço dinâmico por alta demanda aplicado nesta cotação */
+  highDemand?: boolean;
 }
 
 export interface Estimate { cityId: string; cityName: string; route: RouteInfo; approximateRoute: boolean; quotes: Quote[]; }

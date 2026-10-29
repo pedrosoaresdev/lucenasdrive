@@ -64,6 +64,11 @@ import {
               <p class="alert warn small">Estimativa aproximada (linha reta): o serviço de rotas não respondeu agora.
                 O valor exibido é o que será cobrado nesta corrida.</p>
             }
+            @if (highDemand(est); as hd) {
+              <p class="alert warn small" role="status"><strong>Alta demanda agora:</strong> muitos pedidos para poucos
+                motoristas na sua região, e o preço está até {{ (hd / 10000).toFixed(1).replace('.', ',') }}× o normal.
+                O valor mostrado é o que será cobrado; se preferir, aguarde alguns minutos e consulte de novo.</p>
+            }
             <div class="options" role="radiogroup" aria-label="Categoria">
               @for (q of est.quotes; track q.quoteId) {
                 <button type="button" role="radio" class="opt" [class.sel]="selected()?.quoteId === q.quoteId"
@@ -72,6 +77,7 @@ import {
                   <span class="info">
                     <strong>{{ q.categoryName }}</strong>
                     <span class="small muted">{{ q.availableDrivers ? q.availableDrivers + ' motorista(s) por perto' : 'Sem motoristas próximos agora' }}</span>
+                    @if (q.highDemand) { <span class="badge warn small">Alta demanda · {{ (q.multiplierBp / 10000).toFixed(1).replace('.', ',') }}×</span> }
                   </span>
                   <span class="price">
                     @if (q.discountCents) { <s class="small muted">{{ q.totalCents | money }}</s> }
@@ -124,6 +130,12 @@ import {
   `,
 })
 export class HomePage implements OnInit {
+  /** Maior multiplicador entre as categorias com preço dinâmico (null = sem alta demanda). */
+  protected highDemand(est: { quotes: { highDemand?: boolean; multiplierBp: number }[] }): number | null {
+    const list = est.quotes.filter((q) => q.highDemand).map((q) => q.multiplierBp);
+    return list.length ? Math.max(...list) : null;
+  }
+
   protected readonly router = inject(Router);
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);

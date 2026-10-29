@@ -76,6 +76,11 @@ Tarifas: `PUT /api/v1/admin/cities/{cityId}/fares/{categoria}` aceita `effective
 programar a alteração; `POST …/cancel-scheduled` cancela. Conversas arquivadas em redespachos:
 `GET /api/v1/admin/rides/{id}/chat-archives?reason=` (auditado).
 
+Demanda: `GET /api/v1/driver/demand-heatmap` (motorista online: quadras agregadas da sua cidade);
+`GET /api/v1/admin/cities/{id}/demand` (política + estado), `GET …/demand-heatmap`,
+`PUT …/demand-policy` (ADMIN/OWNER + MFA; `enabled`, `steps[{minRatio, multiplierBp}]`, `maxBp`, `windowMinutes`, `reason`),
+`POST …/demand/recompute`. A cotação traz `highDemand` quando o preço dinâmico se aplica.
+
 Relatórios (CSV para Excel, auditados): `GET /api/v1/admin/reports/rides.csv?from=&to=&cityId=` (SUPPORT/FINANCE/ADMIN/OWNER) e
 `GET /api/v1/admin/reports/ledger.csv?from=&to=` (FINANCE/ADMIN/OWNER). Datas AAAA-MM-DD; padrão últimos 30 dias; máx. 366 dias.
 

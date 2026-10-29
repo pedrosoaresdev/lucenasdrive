@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { to: '/suporte', label: 'Suporte', roles: ['SUPPORT', 'ADMIN', 'OWNER'], group: 'Operação' },
   { to: '/geografia', label: 'Gestão geográfica', roles: ['SUPPORT', 'FINANCE', 'ADMIN', 'OWNER'], group: 'Comercial' },
   { to: '/tarifas', label: 'Tarifas e comissões', roles: ['SUPPORT', 'FINANCE', 'ADMIN', 'OWNER'], group: 'Comercial' },
+  { to: '/demanda', label: 'Demanda e preço dinâmico', roles: ['SUPPORT', 'FINANCE', 'ADMIN', 'OWNER'], group: 'Comercial' },
   { to: '/cupons', label: 'Cupons e promoções', roles: ['FINANCE', 'ADMIN', 'OWNER'], group: 'Comercial' },
   { to: '/financeiro', label: 'Financeiro', roles: ['FINANCE', 'ADMIN', 'OWNER'], group: 'Financeiro' },
   { to: '/equipe', label: 'Equipe e permissões', roles: ['ADMIN', 'OWNER'], group: 'Governança' },

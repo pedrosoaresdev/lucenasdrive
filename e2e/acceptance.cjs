@@ -282,6 +282,7 @@ async function toastText(page) {
     await sw.click();
     await drv.getByText('Você está online', { exact: true }).waitFor();
     step('Motorista fica online com localização autorizada', true);
+    await drv.getByText('Mapa de calor de demanda').waitFor({ timeout: 15000 });
 
     // ------------------------------------------------ Passageiro: cadastro + verificação de e-mail
     const paxEmail = `passageira.${RUN}@exemplo.test`;
@@ -428,6 +429,18 @@ async function toastText(page) {
     await adm.locator('.kpi', { hasText: 'Concluídas' }).waitFor();
     await adm.screenshot({ path: path.join(OUT, '10-admin-dashboard.png'), fullPage: true });
     step('Dashboard reflete os dados reais do banco', true);
+
+    // ------------------------------------------------ Demanda e preço dinâmico (desligado por padrão)
+    await adm.goto(`${ADM}/demanda`);
+    await adm.getByRole('heading', { name: 'Política da cidade' }).waitFor({ timeout: 15000 });
+    await adm.locator('select[aria-label="Cidade"]').selectOption({ label: `${cityName} - PB` });
+    await adm.getByRole('button', { name: 'Recalcular agora' }).click();
+    await stepUpIfAsked();
+    await adm.getByText('Passageiros pedindo').waitFor({ timeout: 15000 });
+    const demandText = await adm.locator('section', { hasText: 'Passageiros pedindo' }).innerText();
+    await adm.screenshot({ path: path.join(OUT, '10c-admin-demanda.png'), fullPage: true });
+    step('Admin vê demanda × oferta da cidade e a política de preço dinâmico (desligada por padrão)',
+      /Preço dinâmico desligado/.test(demandText), demandText.replace(/\s+/g, ' ').slice(0, 90));
 
     // ------------------------------------------------ O olho de Deus (localização opcional)
     await pax.goto(`${PAX}/perfil`);

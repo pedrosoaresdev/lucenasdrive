@@ -46,6 +46,8 @@ public final class Collections {
     public static final String RIDE_SHARES = "rideShares";
     public static final String PRESENCE = "presence";
     public static final String LOCATION_CONSENTS = "locationConsents";
+    public static final String DEMAND_POLICIES = "demandPolicies";
+    public static final String DEMAND_STATES = "demandStates";
 
     private Collections() {
     }

@@ -8,6 +8,8 @@ lucena:
     osrm-url: ""
   dispatch:
     tick-ms: 3600000
+  demand:
+    tick-ms: 3600000
   presence:
     purge-ms: 3600000
   fares:

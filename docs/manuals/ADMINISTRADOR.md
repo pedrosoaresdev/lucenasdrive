@@ -76,3 +76,11 @@ Em **Corridas**, "Exportar planilha" baixa um CSV (abre no Excel) com as corrida
 pagamento, cupom, motorista, placa e passageiro (nome público), cancelamento e avaliação. Em **Financeiro**,
 "Exportar lançamentos" baixa todos os lançamentos do período. Não há CPF, e-mail ou telefone nas planilhas, e cada
 exportação fica registrada na auditoria.
+
+## Demanda e preço dinâmico
+Em **Comercial › Demanda e preço dinâmico**, escolha a cidade para ver, agora: passageiros pedindo preço ou corrida
+(janela configurável), motoristas livres, a razão entre eles e o multiplicador. O mapa de calor mostra onde estão os
+pedidos dos últimos 30 minutos (agrupados, sem identificar ninguém) — os motoristas veem o mesmo mapa no app.
+O **preço dinâmico vem desligado**. Para ligar, marque "Preço dinâmico ligado", defina os degraus (ex.: razão 2 → 1,2×;
+3 → 1,4×), o teto e a janela, e salve com justificativa (fica na auditoria). Com ele ligado, o passageiro vê o aviso
+"Alta demanda" e o multiplicador antes de confirmar. Recomendação: valide com o jurídico antes de ligar.

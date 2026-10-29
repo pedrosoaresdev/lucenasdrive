@@ -17,6 +17,9 @@ export interface MapMarker {
   info?: string;
 }
 
+/** Quadra do mapa de calor de demanda (agregada; sem dados pessoais). */
+export interface HeatCell { lat: number; lng: number; count: number; }
+
 export interface MapPolygon {
   id: string;
   path: { lat: number; lng: number }[];
@@ -81,6 +84,8 @@ export class MapComponent implements OnDestroy {
   /** Vértices do rascunho podem ser arrastados (edição de regiões). */
   readonly editableDraft = input(false);
   readonly draftChange = output<{ lat: number; lng: number }[]>();
+  /** Camada de calor de demanda (círculos mais fortes = mais pedidos recentes). */
+  readonly heat = input<HeatCell[]>([]);
 
   private map?: google.maps.Map;
   private gMarkers = new Map<string, google.maps.Marker>();
@@ -96,6 +101,8 @@ export class MapComponent implements OnDestroy {
   private lPolys: Leaflet.Polygon[] = [];
   private lDraft?: Leaflet.Polyline;
   private lHandles: Leaflet.Marker[] = [];
+  private lHeat: Leaflet.Circle[] = [];
+  private gHeat: google.maps.Circle[] = [];
   private gHandles: google.maps.Marker[] = [];
   private fitted = false;
 
@@ -124,6 +131,7 @@ export class MapComponent implements OnDestroy {
       this.lSyncLine(this.polyline());
       this.lSyncPolygons(this.polygons());
       this.lSyncDraft(this.draftPath());
+      this.lSyncHeat(this.heat());
       this.lFit();
     });
 
@@ -133,6 +141,7 @@ export class MapComponent implements OnDestroy {
       this.syncLine(this.polyline());
       this.syncPolygons(this.polygons());
       this.syncDraft(this.draftPath());
+      this.syncHeat(this.heat());
       this.fit();
     });
 
@@ -332,6 +341,31 @@ export class MapComponent implements OnDestroy {
         this.draftChange.emit(next);
       });
       this.lHandles.push(h);
+    });
+  }
+
+  private static heatStyle(c: HeatCell, max: number): { color: string; opacity: number } {
+    const t = max > 0 ? c.count / max : 0;
+    return { color: t > 0.66 ? '#dc2626' : t > 0.33 ? '#f97316' : '#f59e0b', opacity: 0.18 + 0.32 * t };
+  }
+
+  private lSyncHeat(cells: HeatCell[]): void {
+    this.lHeat.forEach((c) => c.remove());
+    const max = Math.max(0, ...cells.map((c) => c.count));
+    this.lHeat = cells.map((c) => {
+      const st = MapComponent.heatStyle(c, max);
+      return this.L!.circle(c, { radius: 280, stroke: false, fillColor: st.color, fillOpacity: st.opacity, interactive: true })
+        .bindTooltip(`${c.count} pedido(s) recente(s)`).addTo(this.lmap!);
+    });
+  }
+
+  private syncHeat(cells: HeatCell[]): void {
+    this.gHeat.forEach((c) => c.setMap(null));
+    const max = Math.max(0, ...cells.map((c) => c.count));
+    this.gHeat = cells.map((c) => {
+      const st = MapComponent.heatStyle(c, max);
+      return new google.maps.Circle({ map: this.map, center: c, radius: 280, strokeWeight: 0, fillColor: st.color,
+        fillOpacity: st.opacity, clickable: false });
     });
   }
 

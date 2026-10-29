@@ -29,6 +29,7 @@ export const routes: Routes = [
       { path: 'olho-de-deus', loadComponent: () => import('./pages/god-eye.page'), title: 'O olho de Deus · Admin' },
       { path: 'mapa', loadComponent: () => import('./pages/live-map.page'), title: 'Mapa operacional · Admin' },
       { path: 'geografia', loadComponent: () => import('./pages/geo.page'), title: 'Gestão geográfica · Admin' },
+      { path: 'demanda', loadComponent: () => import('./pages/demand.page'), title: 'Demanda e preço dinâmico · Admin' },
       { path: 'tarifas', loadComponent: () => import('./pages/fares.page'), title: 'Tarifas · Admin' },
       { path: 'cupons', loadComponent: () => import('./pages/coupons.page'), title: 'Cupons · Admin' },
       { path: 'avaliacoes', loadComponent: () => import('./pages/ratings.page'), title: 'Avaliações · Admin' },

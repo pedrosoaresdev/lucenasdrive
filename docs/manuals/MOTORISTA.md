@@ -39,3 +39,7 @@ equipe**. Ao desligar, sua posição é apagada na hora.
 
 ## Enviar sua localização no chat
 No chat da corrida, toque em 📍 para mandar ao passageiro onde você está. Ele recebe um link "Abrir no mapa".
+
+## Mapa de calor de demanda
+Online, o mapa do painel mostra manchas onde houve mais pedidos de passageiros nos últimos 30 minutos (vermelho =
+mais pedidos). Use para escolher onde ficar. Atualiza a cada minuto e pode ser desligado no painel.
