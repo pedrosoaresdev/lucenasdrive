@@ -31,8 +31,12 @@
               }
             ],
             "styles": [
+              "node_modules/leaflet/dist/leaflet.css",
               "projects/shared/src/lib/styles/lucena.css",
               "projects/passenger/src/styles.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "leaflet"
             ]
           },
           "configurations": {
@@ -124,8 +128,12 @@
               }
             ],
             "styles": [
+              "node_modules/leaflet/dist/leaflet.css",
               "projects/shared/src/lib/styles/lucena.css",
               "projects/driver/src/styles.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "leaflet"
             ]
           },
           "configurations": {
@@ -217,8 +225,12 @@
               }
             ],
             "styles": [
+              "node_modules/leaflet/dist/leaflet.css",
               "projects/shared/src/lib/styles/lucena.css",
               "projects/admin/src/styles.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "leaflet"
             ]
           },
           "configurations": {

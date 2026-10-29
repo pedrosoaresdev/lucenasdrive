@@ -18,6 +18,15 @@ export interface LucenaConfig {
   /** Chave de NAVEGADOR do Google Maps (restrita por domínio e por API). Vazia = integração pendente. */
   mapsBrowserKey: string;
   mapsMapId?: string;
+  /**
+   * Provedor de mapas: 'google' (exige mapsBrowserKey), 'osm' (OpenStreetMap, gratuito, sem chave) ou
+   * 'auto' (padrão): Google quando houver chave; senão OpenStreetMap.
+   */
+  mapsProvider?: 'auto' | 'google' | 'osm';
+  /** Servidor de mapas (tiles) do OpenStreetMap. Padrão: tile.openstreetmap.org (uso moderado; ver política). */
+  osmTileUrl?: string;
+  /** Busca de endereços sem Google (Photon/Komoot, baseado em OpenStreetMap). */
+  osmGeocoderUrl?: string;
   /** Chave pública VAPID do FCM (Web Push). Vazia = push desativado. */
   fcmVapidKey?: string;
 }

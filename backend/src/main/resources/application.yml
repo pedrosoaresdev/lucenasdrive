@@ -63,7 +63,10 @@ lucena:
     driver-min-age: 21
   maps:
     server-api-key: ${MAPS_SERVER_API_KEY:}
-    allow-straight-line-fallback: ${MAPS_ALLOW_STRAIGHT_LINE_FALLBACK:false}
+    # Rotas OpenStreetMap (sem chave). Servidor público: testes/piloto; em escala, hospede um OSRM próprio.
+    osrm-url: ${MAPS_OSRM_URL:https://router.project-osrm.org}
+    # Plano B se Google/OSRM falharem: estimativa em linha reta, sinalizada como "rota aproximada".
+    allow-straight-line-fallback: ${MAPS_ALLOW_STRAIGHT_LINE_FALLBACK:true}
   dispatch:
     offer-timeout: PT20S
     batch-size: 3

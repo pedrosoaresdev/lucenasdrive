@@ -61,8 +61,8 @@ import {
               <span>{{ est.cityName }}</span>
             </div>
             @if (est.approximateRoute) {
-              <p class="alert warn small">Estimativa aproximada (linha reta): a Google Routes API não está configurada
-                neste ambiente. O valor exibido é o que será cobrado nesta corrida.</p>
+              <p class="alert warn small">Estimativa aproximada (linha reta): o serviço de rotas não respondeu agora.
+                O valor exibido é o que será cobrado nesta corrida.</p>
             }
             <div class="options" role="radiogroup" aria-label="Categoria">
               @for (q of est.quotes; track q.quoteId) {

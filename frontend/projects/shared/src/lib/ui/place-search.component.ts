@@ -2,8 +2,9 @@ import { ChangeDetectionStrategy, Component, inject, input, output, signal } fro
 import { FormsModule } from '@angular/forms';
 import { MapsLoaderService } from '../core/maps-loader.service';
 import { Place } from '../core/models';
+import { photonReverse, photonSearch } from '../core/osm-geocoder';
 
-interface Suggestion { text: string; prediction: google.maps.places.PlacePrediction; }
+interface Suggestion { text: string; prediction?: google.maps.places.PlacePrediction; place?: Place; }
 
 /**
  * Busca de endereços com a Places API (New). Sem chave do Google, oferece entrada de coordenadas
@@ -31,9 +32,13 @@ interface Suggestion { text: string; prediction: google.maps.places.PlacePredict
         }
       </ul>
     }
-    @if (!maps.configured) {
+    @if (!maps.configured && maps.provider !== 'osm') {
       <p class="hint small muted">Busca de endereços indisponível (Google Places não configurado). Informe
         coordenadas como <span class="mono">-7.1195, -34.8450</span>, toque no mapa ou use sua localização.</p>
+    }
+    @if (maps.provider === 'osm' && osmFailed()) {
+      <p class="hint small muted">A busca de endereços está instável agora. Toque no mapa, use sua localização ou
+        informe coordenadas como <span class="mono">-7.1195, -34.8450</span>.</p>
     }
     @if (error()) { <p class="small" style="color: var(--ld-danger)">{{ error() }}</p> }
   `,
@@ -62,6 +67,8 @@ export class PlaceSearchComponent {
   protected readonly open = signal(false);
   protected readonly locating = signal(false);
   protected readonly error = signal('');
+  protected readonly osmFailed = signal(false);
+  private abort?: AbortController;
   private session?: google.maps.places.AutocompleteSessionToken;
   private timer?: ReturnType<typeof setTimeout>;
 
@@ -83,15 +90,30 @@ export class PlaceSearchComponent {
       }
       return;
     }
-    if (!this.maps.configured || v.trim().length < 3) {
+    if (!this.maps.hasMap || v.trim().length < 3) {
       this.suggestions.set([]);
       return;
     }
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => void this.fetch(v), 250);
+    this.timer = setTimeout(() => void this.fetch(v), this.maps.provider === 'osm' ? 450 : 250);
+  }
+
+  /** OpenStreetMap: Photon (gratuito). Falhas não travam a tela: o usuário segue com mapa/localização/coordenadas. */
+  private async fetchOsm(input: string): Promise<void> {
+    this.abort?.abort();
+    this.abort = new AbortController();
+    try {
+      const list = await photonSearch(this.maps.osmGeocoderUrl, input, this.bias(), this.abort.signal);
+      this.osmFailed.set(false);
+      this.suggestions.set(list.map((s) => ({ text: s.text, place: s.place })));
+      this.open.set(true);
+    } catch (e) {
+      if ((e as Error)?.name !== 'AbortError') this.osmFailed.set(true);
+    }
   }
 
   private async fetch(input: string): Promise<void> {
+    if (this.maps.provider === 'osm') return this.fetchOsm(input);
     try {
       await this.maps.load();
       const lib = (await google.maps.importLibrary('places')) as google.maps.PlacesLibrary;
@@ -112,6 +134,11 @@ export class PlaceSearchComponent {
   protected async pick(s: Suggestion): Promise<void> {
     this.open.set(false);
     this.text.set(s.text);
+    if (s.place) {
+      this.selected.emit(s.place);
+      return;
+    }
+    if (!s.prediction) return;
     try {
       const place = s.prediction.toPlace();
       await place.fetchFields({ fields: ['location', 'formattedAddress'] });
@@ -154,8 +181,15 @@ export class PlaceSearchComponent {
   }
 }
 
-/** Geocodificação reversa (Geocoding API via Maps JS), quando configurada. */
+/** Geocodificação reversa: Geocoding API (Google) ou Photon (OpenStreetMap). Null se indisponível. */
 export async function reverseGeocode(maps: MapsLoaderService, p: { lat: number; lng: number }): Promise<string | null> {
+  if (maps.provider === 'osm') {
+    try {
+      return await photonReverse(maps.osmGeocoderUrl, p);
+    } catch {
+      return null;
+    }
+  }
   if (!maps.configured) return null;
   try {
     await maps.load();

@@ -5,6 +5,7 @@ lucena:
     require-verified-email: true
   maps:
     allow-straight-line-fallback: true
+    osrm-url: ""
   dispatch:
     tick-ms: 3600000
   presence:

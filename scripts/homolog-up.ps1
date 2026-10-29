@@ -70,7 +70,8 @@ Get-Content $KeysFile | ForEach-Object { $p = $_.Split('=', 2); if ($p.Length -e
 #     Fica so em .homolog (fora do git). Sem ela, o sistema usa a estimativa em linha reta (sinalizada na tela).
 $MapsKeyFile = Join-Path $State 'maps-server-key.txt'
 if (-not (Test-Path $MapsKeyFile)) {
-  Write-Host 'Chave de SERVIDOR do Google Maps (Routes API). Deixe vazio e aperte Enter para pular.'
+  Write-Host 'Chave de SERVIDOR do Google Maps (opcional). Sem ela, as rotas usam o OpenStreetMap (OSRM), gratuito.'
+  Write-Host 'Deixe vazio e aperte Enter para pular.'
   $mk = (Read-Host 'Chave de servidor').Trim()
   Set-Content -Encoding ASCII $MapsKeyFile $mk
 }

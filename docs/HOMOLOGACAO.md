@@ -49,17 +49,25 @@ Depois: confirme o e-mail do proprietário, entre no painel (4202) e cadastre o 
 Regras e índices já foram publicados. Para republicar depois de mudanças: `.\scripts\homolog-up.ps1 -DeployRules`
 (abre o login do Firebase CLI no navegador; conclua o login na mesma máquina).
 
-## Google Maps (mapa, busca de endereços e rotas)
-São duas chaves no projeto `lucenasdrive` do Google Cloud (exige conta de faturamento; o uso pequeno de testes
-costuma ficar dentro do crédito mensal gratuito — configure alerta de orçamento):
+## Mapas: OpenStreetMap (padrão, gratuito) ou Google Maps (opcional)
+Sem nenhuma chave, o sistema usa o **OpenStreetMap**, sem custo e sem cartão:
 
-| Chave | APIs | Restrição | Onde vai |
-|---|---|---|---|
-| Navegador | Maps JavaScript API, Places API (New), Geocoding API | Sites: `http://127.0.0.1:*/*` e `http://localhost:*/*` | `HOMOLOG_MAPS_BROWSER_KEY` em `frontend/projects/homolog.firebase.ts` (pública; pode ir ao git) |
-| Servidor | Routes API | Somente a Routes API | O script pergunta uma vez e guarda em `.homolog\maps-server-key.txt` (fora do git) |
+| Função | Serviço | Observações |
+|---|---|---|
+| Mapa (ruas) | tile.openstreetmap.org via Leaflet | Atribuição "© OpenStreetMap" exibida no mapa (obrigatória) |
+| Busca de endereço e endereço do ponto | Photon (photon.komoot.io) | Sugestões enquanto digita; resultados fora do Brasil são descartados |
+| Rota, distância e tempo (preço) | OSRM (router.project-osrm.org), no servidor | ~1 consulta/s; sem trânsito em tempo real |
 
-Para trocar a chave de servidor: apague `.homolog\maps-server-key.txt` e rode o script de novo.
-Sem chave de servidor, o preço usa a distância em linha reta (a tela avisa "rota aproximada").
+**Plano B automático:** se a busca de endereços falhar, a tela orienta tocar no mapa, usar a localização ou
+digitar coordenadas; se o OSRM falhar, o preço usa a estimativa em linha reta, avisada ao passageiro antes de
+confirmar. Ninguém fica sem conseguir pedir ou atender corrida por causa do mapa.
+
+**Limites honestos:** os servidores públicos do OpenStreetMap são gratuitos, mas **sem garantia** e com política
+de uso justo — servem para testes e piloto pequeno. Com muitos usuários, hospede o próprio OSRM/Photon/tiles
+(ou um provedor pago) e aponte `MAPS_OSRM_URL` (servidor) e `osmTileUrl`/`osmGeocoderUrl` (portais) para eles.
+
+Google Maps continua suportado: com `HOMOLOG_MAPS_BROWSER_KEY` preenchida os portais usam Google; com a chave de
+servidor (o script pergunta, opcional) as rotas usam a Google Routes API, com OSRM e linha reta como reserva.
 
 ## 3. Roteiro de teste sugerido
 Mesmo roteiro do `docs/INSTALL.md` (cidade e área, tarifa, cupom, motorista, documentos, aprovação, corrida,

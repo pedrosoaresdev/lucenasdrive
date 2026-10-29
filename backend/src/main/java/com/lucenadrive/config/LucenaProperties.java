@@ -21,7 +21,7 @@ public record LucenaProperties(
         firebase = firebase != null ? firebase : new Firebase(true, null, null, null, false);
         security = security != null ? security : new Security(null, null, null, null, null, null, true);
         eligibility = eligibility != null ? eligibility : new Eligibility(18, 21);
-        maps = maps != null ? maps : new Maps(null, null, false);
+        maps = maps != null ? maps : new Maps(null, null, false, null);
         dispatch = dispatch != null ? dispatch : new Dispatch(null, 0, null, 0, 0, null, -1);
         chat = chat != null ? chat : new Chat(0, 0, 0, null, null);
         ratings = ratings != null ? ratings : new Ratings(true, null);
@@ -62,7 +62,11 @@ public record LucenaProperties(
      * allowStraightLineFallback: somente desenvolvimento; gera estimativa em linha reta claramente
      * marcada como aproximada quando a Routes API não está configurada.
      */
-    public record Maps(String serverApiKey, String browserApiKey, boolean allowStraightLineFallback) {
+    /**
+     * osrmUrl: servidor OSRM (rotas OpenStreetMap, sem chave). Vazio desativa. O servidor público de demonstração
+     * serve para testes e pilotos pequenos; em escala, use um OSRM próprio.
+     */
+    public record Maps(String serverApiKey, String browserApiKey, boolean allowStraightLineFallback, String osrmUrl) {
     }
 
     /**

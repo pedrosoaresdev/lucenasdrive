@@ -9,20 +9,29 @@ import org.springframework.stereotype.Service;
 public class RouteService {
 
     private final RouteProvider provider;
+    private final boolean realRoutes;
 
+    /** Ordem: Google Routes (se houver chave) → OSRM/OpenStreetMap (se configurado) → linha reta (se permitido). */
     public RouteService(LucenaProperties props) {
+        java.util.List<RouteProvider> chain = new java.util.ArrayList<>();
         String key = props.maps().serverApiKey();
         if (key != null && !key.isBlank()) {
-            provider = new GoogleRoutesProvider(key);
-        } else if (props.maps().allowStraightLineFallback()) {
-            provider = new StraightLineRouteProvider();
-        } else {
-            provider = null;
+            chain.add(new GoogleRoutesProvider(key));
         }
+        String osrm = props.maps().osrmUrl();
+        if (osrm != null && !osrm.isBlank()) {
+            chain.add(new OsrmRouteProvider(osrm));
+        }
+        realRoutes = !chain.isEmpty();
+        if (props.maps().allowStraightLineFallback()) {
+            chain.add(new StraightLineRouteProvider());
+        }
+        provider = chain.isEmpty() ? null : new FallbackRouteProvider(chain);
     }
 
+    /** Há provedor de rota real (Google ou OSRM) configurado. */
     public boolean configured() {
-        return provider instanceof GoogleRoutesProvider;
+        return realRoutes;
     }
 
     public boolean available() {
@@ -32,7 +41,7 @@ public class RouteService {
     public RouteResult route(GeoPoint origin, GeoPoint destination) {
         if (provider == null) {
             throw new ApiException(ErrorCode.INTEGRATION_NOT_CONFIGURED,
-                    "Cálculo de rotas indisponível: configure a Google Routes API (MAPS_SERVER_API_KEY).");
+                    "Cálculo de rotas indisponível: configure MAPS_SERVER_API_KEY (Google) ou MAPS_OSRM_URL (OpenStreetMap).");
         }
         return provider.route(origin, destination);
     }

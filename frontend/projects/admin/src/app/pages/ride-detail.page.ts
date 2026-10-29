@@ -31,7 +31,7 @@ interface Detail {
         <section class="card stack">
           <h2>Resumo</h2>
           <p class="small">{{ r.createdAt | dt }} · {{ r.categoryName }} · {{ r.route.distanceMeters | km }} · {{ r.route.durationSeconds | minutes }}
-            · rota {{ r.route.source === 'GOOGLE_ROUTES' ? 'Google Routes' : 'estimativa aproximada' }}</p>
+            · rota {{ r.route.source === 'GOOGLE_ROUTES' ? 'Google Routes' : r.route.source === 'OSRM' ? 'OpenStreetMap (OSRM)' : 'estimativa aproximada' }}</p>
           <p class="small"><strong>Passageiro:</strong> <a [routerLink]="['/passageiros', r.passenger?.userId]">{{ r.passenger?.name }}</a></p>
           @if (r.driver) { <p class="small"><strong>Motorista:</strong> <a [routerLink]="['/motoristas', r.driver.userId]">{{ r.driver.name }}</a>
             · {{ r.driver.vehicleMake }} {{ r.driver.vehicleModel }} · {{ r.driver.plate }}</p> }

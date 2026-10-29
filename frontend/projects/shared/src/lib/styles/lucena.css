@@ -203,3 +203,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Marcadores do OpenStreetMap (Leaflet): sem o fundo branco padrão do divIcon */
+.ld-osm-marker { background: none; border: 0; }
+.leaflet-container { font: inherit; background: var(--ld-surface-2); }

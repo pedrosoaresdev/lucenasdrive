@@ -7,12 +7,12 @@ Resultados reais da última execução neste repositório:
 
 | Suíte | Comando | Resultado |
 |---|---|---|
-| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **57 testes, 0 falhas** |
+| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **61 testes, 0 falhas** (inclui rotas OSRM e plano B) |
 | Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **14 testes, 0 falhas** ("O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
 | Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** (inclui negação de acesso a `presence` e `locationConsents`) |
-| Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **13 testes, 0 falhas** |
+| Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **16 testes, 0 falhas** (inclui busca OpenStreetMap e polyline) |
 | Build de produção dos 3 portais | `ng build …` | **sem erros nem avisos** |
-| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **30/30 etapas** |
+| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **31/31 etapas** (com `E2E_MOCK_OSM=1`) |
 
 Destaques dos testes de integração:
 - **Aceite concorrente:** 3 motoristas aceitam a mesma corrida simultaneamente → exatamente 1 sucesso (200) e 2 recusas (409).
@@ -75,6 +75,12 @@ alterações de tarifa programadas com data de vigência (versão criada no inst
 **Painel "O olho de Deus" (admin):** mapa e lista, atualizados a cada 15 s, com nome e tipo (motorista/passageiro)
 de quem ativou, no app, o compartilhamento opcional de localização. Somente ADMIN/OWNER; acessos auditados;
 consentimento revogável a qualquer momento em Perfil. O mapa exige a chave de navegador do Google Maps.
+
+**Mapas sem custo (OpenStreetMap):** sem chave do Google, os portais usam Leaflet + OpenStreetMap, a busca de
+endereços usa o Photon e as rotas/preço usam o OSRM, com reserva automática para estimativa em linha reta.
+Os servidores públicos do OpenStreetMap não puderam ser acessados do ambiente de desenvolvimento (bloqueados
+pela rede): validados com testes no formato oficial das respostas (backend com servidor HTTP local; E2E com
+respostas simuladas via `E2E_MOCK_OSM=1`). Validar no computador do proprietário.
 
 **Frontend:** design system próprio (tema claro/escuro, acessibilidade, estados de carregamento/vazio/erro/indisponível);
 PWA nos 3 portais; passageiro (landing, cadastro, login, verificação de e-mail, recuperação/redefinição de senha,

@@ -99,6 +99,19 @@ async function toastText(page) {
   for (const [n, p] of [['admin', adm], ['motorista', drv], ['passageiro', pax]]) {
     p.on('pageerror', (e) => console.log(`[${n}] erro de página:`, e.message));
   }
+  // OpenStreetMap: neste ambiente de CI os servidores públicos são bloqueados; com E2E_MOCK_OSM=1 respondemos no
+  // formato oficial (tiles PNG e GeoJSON do Photon). Sem a variável, o teste usa os serviços reais.
+  if (process.env.E2E_MOCK_OSM === '1') {
+    const tile = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64');
+    for (const ctx of [admCtx, drvCtx, paxCtx]) {
+      await ctx.route('https://tile.openstreetmap.org/**', (r) => r.fulfill({ status: 200, contentType: 'image/png', body: tile }));
+      await ctx.route('https://photon.komoot.io/**', (r) => r.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature',
+          geometry: { type: 'Point', coordinates: [LNG0, LAT0] },
+          properties: { countrycode: 'BR', street: 'Rua das Acácias', housenumber: '100', district: 'Centro',
+            city: 'Cidade Teste', state: 'Paraíba', osm_id: '1', osm_type: 'N' } }] }) }));
+    }
+  }
   // Convite opcional de localização ("O olho de Deus"): quando aparecer, o usuário de teste permite.
   for (const p of [drv, pax]) {
     await p.addLocatorHandler(p.locator('ld-location-consent').getByRole('button', { name: 'Permitir' }),
@@ -278,7 +291,12 @@ async function toastText(page) {
     step('Passageiro se cadastra e confirma o e-mail', true);
 
     // ------------------------------------------------ Cotação, cupom e solicitação
-    await pax.locator('#origin').fill(ORIGIN);
+    // Busca de endereço pelo OpenStreetMap (Photon): digitar, escolher a sugestão
+    await pax.locator('#origin').fill('Rua das Acácias 100');
+    await pax.getByRole('option', { name: /Rua das Acácias, 100/ }).click({ timeout: 15000 });
+    await pax.locator('.leaflet-container').first().waitFor({ timeout: 15000 });
+    step('Mapa OpenStreetMap carregado e endereço encontrado pela busca (sem chave do Google)',
+      (await pax.locator('.ld-osm-marker').count()) >= 1, 'Rua das Acácias, 100 - Centro - Cidade Teste - Paraíba');
     await pax.locator('#destination').fill(DEST);
     await pax.locator('input[aria-label="Cupom de desconto"]').fill(coupon);
     await pax.getByRole('button', { name: 'Ver preços' }).click();

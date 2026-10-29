@@ -2,7 +2,9 @@ import {
   ChangeDetectionStrategy, Component, ElementRef, OnDestroy, afterNextRender, effect, inject, input, output,
   signal, viewChild,
 } from '@angular/core';
+import type * as Leaflet from 'leaflet';
 import { MapsLoaderService } from '../core/maps-loader.service';
+import { decodePolyline } from '../core/osm-geocoder';
 
 export interface MapMarker {
   id: string;
@@ -25,8 +27,8 @@ export interface MapPolygon {
 const COLORS = { origin: '#10b981', destination: '#4338ca', me: '#0369a1', point: '#f59e0b', car: '#0d1321', person: '#e11d48' };
 
 /**
- * Mapa Google Maps reutilizável (marcadores, rota codificada, polígonos e cliques).
- * Sem chave configurada, exibe um estado claro de integração pendente em vez de um mapa falso.
+ * Mapa reutilizável (marcadores, rota codificada, polígonos e cliques) com dois motores:
+ * Google Maps (com chave) ou OpenStreetMap via Leaflet (gratuito, sem chave).
  */
 @Component({
   selector: 'ld-map',
@@ -53,7 +55,7 @@ const COLORS = { origin: '#10b981', destination: '#4338ca', me: '#0369a1', point
   `,
   styles: `
     :host { display: block; }
-    .wrap { position: relative; width: 100%; height: 100%; min-height: 220px; border-radius: inherit; overflow: hidden;
+    .wrap { position: relative; isolation: isolate; width: 100%; height: 100%; min-height: 220px; border-radius: inherit; overflow: hidden;
       background: linear-gradient(135deg, var(--ld-surface-2), var(--ld-bg)); }
     .canvas { position: absolute; inset: 0; }
     .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; align-items: center;
@@ -82,10 +84,20 @@ export class MapComponent implements OnDestroy {
   private gDraft?: google.maps.Polyline;
   private info?: google.maps.InfoWindow;
   private readonly ready = signal(false);
+  private L?: typeof Leaflet;
+  private lmap?: Leaflet.Map;
+  private lMarkers = new Map<string, Leaflet.Marker>();
+  private lLine?: Leaflet.Polyline;
+  private lPolys: Leaflet.Polygon[] = [];
+  private lDraft?: Leaflet.Polyline;
   private fitted = false;
 
   constructor() {
     afterNextRender(() => {
+      if (this.maps.provider === 'osm') {
+        void this.initLeaflet();
+        return;
+      }
       if (!this.maps.configured) return;
       this.maps.load().then((g) => {
         this.map = new g.Map(this.canvas().nativeElement, {
@@ -100,6 +112,15 @@ export class MapComponent implements OnDestroy {
     });
 
     effect(() => {
+      if (!this.ready() || !this.lmap) return;
+      this.lSyncMarkers(this.markers());
+      this.lSyncLine(this.polyline());
+      this.lSyncPolygons(this.polygons());
+      this.lSyncDraft(this.draftPath());
+      this.lFit();
+    });
+
+    effect(() => {
       if (!this.ready() || !this.map) return;
       this.syncMarkers(this.markers());
       this.syncLine(this.polyline());
@@ -111,6 +132,7 @@ export class MapComponent implements OnDestroy {
     effect(() => {
       const c = this.center();
       if (this.ready() && this.map && !this.markers().length) this.map.panTo(c);
+      if (this.ready() && this.lmap && !this.markers().length) this.lmap.panTo(c);
     });
   }
 
@@ -190,7 +212,94 @@ export class MapComponent implements OnDestroy {
     }
   }
 
+  // ------------------------------------------------------------------ OpenStreetMap (Leaflet)
+
+  private async initLeaflet(): Promise<void> {
+    try {
+      const L = await this.maps.loadLeaflet();
+      this.L = L;
+      this.lmap = L.map(this.canvas().nativeElement, { zoomControl: true, attributionControl: true })
+        .setView(this.center(), this.zoom());
+      L.tileLayer(this.maps.osmTileUrl, {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+      }).addTo(this.lmap);
+      this.lmap.on('click', (e: Leaflet.LeafletMouseEvent) => this.mapClick.emit({ lat: e.latlng.lat, lng: e.latlng.lng }));
+      // o contêiner pode mudar de tamanho depois da renderização (layouts responsivos)
+      setTimeout(() => this.lmap?.invalidateSize(), 200);
+      this.ready.set(true);
+    } catch {
+      this.maps.status.set('error');
+    }
+  }
+
+  private lIcon(m: MapMarker): Leaflet.DivIcon {
+    const color = COLORS[m.kind];
+    const html = m.kind === 'car'
+      ? `<svg width="26" height="26" viewBox="-10 -10 20 20" style="transform:rotate(${m.heading ?? 0}deg)"><path d="M -6,6 L 0,-8 L 6,6 L 0,3 Z" fill="${color}" stroke="#fff" stroke-width="1.5"/></svg>`
+      : `<span style="display:block;width:${m.kind === 'me' ? 14 : 18}px;height:${m.kind === 'me' ? 14 : 18}px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></span>`;
+    const size = m.kind === 'car' ? 26 : m.kind === 'me' ? 20 : 24;
+    return this.L!.divIcon({ html, className: 'ld-osm-marker', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+  }
+
+  private lSyncMarkers(list: MapMarker[]): void {
+    const L = this.L!;
+    const ids = new Set(list.map((m) => m.id));
+    for (const [id, mk] of this.lMarkers) {
+      if (!ids.has(id)) { mk.remove(); this.lMarkers.delete(id); }
+    }
+    for (const m of list) {
+      let mk = this.lMarkers.get(m.id);
+      if (mk) {
+        mk.setLatLng(m);
+        mk.setIcon(this.lIcon(m));
+      } else {
+        mk = L.marker(m, { icon: this.lIcon(m), title: this.label(m), keyboard: true }).addTo(this.lmap!);
+        this.lMarkers.set(m.id, mk);
+      }
+      mk.unbindPopup();
+      if (m.info) {
+        const el = document.createElement('div');
+        el.style.cssText = 'white-space:pre-line;font:600 13px system-ui';
+        el.textContent = m.info; // texto puro: nomes de usuários nunca viram HTML
+        mk.bindPopup(el);
+      }
+    }
+  }
+
+  private lSyncLine(encoded: string | null | undefined): void {
+    this.lLine?.remove();
+    this.lLine = encoded
+      ? this.L!.polyline(decodePolyline(encoded), { color: '#4338ca', weight: 5, opacity: .85 }).addTo(this.lmap!)
+      : undefined;
+  }
+
+  private lSyncPolygons(list: MapPolygon[]): void {
+    this.lPolys.forEach((p) => p.remove());
+    this.lPolys = list.map((p) => this.L!.polygon(p.path, { color: p.color ?? '#4338ca', weight: 2,
+      fillColor: p.color ?? '#4338ca', fillOpacity: .12, interactive: false }).addTo(this.lmap!));
+  }
+
+  private lSyncDraft(path: { lat: number; lng: number }[]): void {
+    this.lDraft?.remove();
+    this.lDraft = path.length
+      ? this.L!.polyline([...path, path[0]], { color: '#f59e0b', weight: 3 }).addTo(this.lmap!)
+      : undefined;
+  }
+
+  private lFit(): void {
+    if (!this.fitToContent() || !this.lmap) return;
+    const pts = this.markers();
+    if (pts.length >= 2) {
+      this.lmap.fitBounds(this.L!.latLngBounds(pts.map((p) => [p.lat, p.lng] as [number, number])), { padding: [60, 60] });
+    } else if (pts.length === 1 && !this.fitted) {
+      this.lmap.setView(pts[0], Math.max(this.lmap.getZoom(), 15));
+      this.fitted = true;
+    }
+  }
+
   ngOnDestroy(): void {
+    this.lmap?.remove();
     this.gMarkers.forEach((m) => m.setMap(null));
     this.gLine?.setMap(null);
     this.gPolys.forEach((p) => p.setMap(null));
