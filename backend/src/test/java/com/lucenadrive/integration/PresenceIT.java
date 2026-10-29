@@ -47,6 +47,10 @@ class PresenceIT extends IntegrationTestBase {
         JsonNode mine = live.valueStream().filter(n -> n.get("userId").asString().equals(pax.uid())).findFirst().orElseThrow();
         assertThat(mine.get("name").asString()).isEqualTo("Passageira Teste Silva");
         assertThat(mine.get("kind").asString()).isEqualTo("PASSENGER");
+        assertThat(mine.get("ip").asString()).isNotBlank();
+        assertThat(mine.get("cityName").asString()).isEqualTo("Cidade Olho - PB"); // dentro da cobertura cadastrada
+        assertThat(call(HttpMethod.GET, "/api/v1/admin/god-eye/positions?cityId=none", admin, null, 200).valueStream()
+                .map(n -> n.get("userId").asString()).toList()).doesNotContain(pax.uid());
         assertThat(call(HttpMethod.GET, "/api/v1/admin/god-eye/positions?kind=DRIVER", admin, null, 200).valueStream()
                 .map(n -> n.get("userId").asString()).toList()).contains(driver.uid()).doesNotContain(pax.uid());
         JsonNode audit = call(HttpMethod.GET, "/api/v1/admin/audit?targetType=presence", admin, null, 200);

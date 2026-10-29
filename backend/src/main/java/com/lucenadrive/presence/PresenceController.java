@@ -52,7 +52,8 @@ public class PresenceController {
     @GetMapping("/api/v1/admin/god-eye/positions")
     @PreAuthorize("hasAnyRole('ADMIN','OWNER')")
     public List<PresenceService.LivePosition> live(@AuthenticationPrincipal AuthUser staff,
-                                                   @RequestParam(required = false) Presence.Kind kind) {
-        return presence.live(staff, kind);
+                                                   @RequestParam(required = false) Presence.Kind kind,
+                                                   @RequestParam(required = false) String cityId) {
+        return presence.live(staff, kind, cityId);
     }
 }

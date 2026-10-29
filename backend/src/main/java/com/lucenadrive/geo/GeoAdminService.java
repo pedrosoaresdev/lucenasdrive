@@ -66,7 +66,9 @@ public class GeoAdminService {
     public City updateCity(AuthUser admin, String id, CityInput in, String reason) {
         return store.transaction(tx -> {
             City prev = tx.get(Collections.CITIES, id, City.class).orElseThrow(() -> ApiException.notFound("Cidade"));
-            City next = new City(id, in.name().trim(), prev.state(), in.ibgeCode(), in.center(), in.active(),
+            String state = in.state() == null || in.state().isBlank() ? prev.state() : in.state().trim().toUpperCase();
+            String ibge = in.ibgeCode() == null || in.ibgeCode().isBlank() ? prev.ibgeCode() : in.ibgeCode().trim();
+            City next = new City(id, in.name().trim(), state, ibge, in.center(), in.active(),
                     in.timezone() == null ? prev.timezone() : in.timezone(), prev.createdAt(), Instant.now(clock));
             tx.set(Collections.CITIES, id, next);
             audit.recordInTx(tx, admin, "CITY_UPDATED", "city", id, DocMapper.toMap(prev), DocMapper.toMap(next), reason);

@@ -37,20 +37,30 @@ public class PresenceService {
     }
 
     public record LivePosition(String userId, String name, Presence.Kind kind, double lat, double lng, Double accuracyM,
-                               Instant updatedAt) {
+                               Instant updatedAt, String ip, String device, String cityId, String cityName) {
     }
+
+    /** Cidades atendidas e suas áreas de cobertura, em cache curto (evita leituras a cada posição recebida). */
+    private record CityCoverage(com.lucenadrive.geo.City city, List<List<com.lucenadrive.geo.GeoPoint>> polygons) {
+    }
+
+    private volatile List<CityCoverage> coverage = List.of();
+    private volatile Instant coverageAt = Instant.EPOCH;
 
     private final DocStore store;
     private final RateLimiter limiter;
     private final AuditService audit;
     private final SchedulerLock lock;
+    private final com.lucenadrive.geo.GeoService geo;
     private final Clock clock;
 
-    public PresenceService(DocStore store, RateLimiter limiter, AuditService audit, SchedulerLock lock, Clock clock) {
+    public PresenceService(DocStore store, RateLimiter limiter, AuditService audit, SchedulerLock lock,
+                           com.lucenadrive.geo.GeoService geo, Clock clock) {
         this.store = store;
         this.limiter = limiter;
         this.audit = audit;
         this.lock = lock;
+        this.geo = geo;
         this.clock = clock;
     }
 
@@ -100,12 +110,48 @@ public class PresenceService {
                 .filter(x -> x.status() == UserStatus.ACTIVE)
                 .orElseThrow(() -> ApiException.forbidden("Conta indisponível."));
         Double acc = accuracyM == null ? null : Math.min(Math.max(accuracyM, 0), 100_000);
+        com.lucenadrive.geo.City city = cityAt(new com.lucenadrive.geo.GeoPoint(lat, lng));
         store.set(Collections.PRESENCE, user.uid(), new Presence(user.uid(), u.fullName(), kind, lat, lng, acc,
-                Instant.now(clock)));
+                Instant.now(clock), com.lucenadrive.security.RequestContext.clientIp(),
+                com.lucenadrive.security.RequestContext.userAgent(),
+                city == null ? null : city.id(), city == null ? null : city.name() + " - " + city.state()));
+    }
+
+    /** Cidade atendida cuja área de cobertura contém o ponto (null = fora das áreas cadastradas). */
+    private com.lucenadrive.geo.City cityAt(com.lucenadrive.geo.GeoPoint p) {
+        Instant now = Instant.now(clock);
+        if (coverageAt.plus(Duration.ofSeconds(60)).isBefore(now)) {
+            List<CityCoverage> list = new ArrayList<>();
+            for (com.lucenadrive.geo.City c : geo.activeCities()) {
+                list.add(new CityCoverage(c, geo.activeAreas(c.id()).stream()
+                        .filter(a -> a.type() == com.lucenadrive.geo.ServiceArea.AreaType.COVERAGE)
+                        .map(com.lucenadrive.geo.ServiceArea::polygon).toList()));
+            }
+            coverage = list;
+            coverageAt = now;
+        }
+        for (CityCoverage cc : coverage) {
+            if (cc.polygons().stream().anyMatch(poly -> com.lucenadrive.geo.GeoMath.contains(poly, p))) {
+                return cc.city();
+            }
+        }
+        return null;
+    }
+
+    /** Resumo legível do aparelho a partir do User-Agent (navegador e sistema). */
+    static String device(String ua) {
+        if (ua == null || ua.isBlank()) {
+            return null;
+        }
+        String os = ua.contains("Android") ? "Android" : ua.contains("iPhone") || ua.contains("iPad") ? "iOS"
+                : ua.contains("Windows") ? "Windows" : ua.contains("Mac OS") ? "macOS" : ua.contains("Linux") ? "Linux" : "outro";
+        String browser = ua.contains("Edg/") ? "Edge" : ua.contains("OPR/") ? "Opera" : ua.contains("SamsungBrowser") ? "Samsung Internet"
+                : ua.contains("Chrome/") ? "Chrome" : ua.contains("Firefox/") ? "Firefox" : ua.contains("Safari/") ? "Safari" : "navegador";
+        return browser + " · " + os;
     }
 
     /** Painel "O olho de Deus": posições recentes de quem consentiu. Auditado a cada 30 min por administrador. */
-    public List<LivePosition> live(AuthUser staff, Presence.Kind kind) {
+    public List<LivePosition> live(AuthUser staff, Presence.Kind kind, String cityId) {
         if (limiter.tryAcquire("godeye-audit:" + staff.uid(), 1, 1_800_000)) {
             audit.record(staff, "GOD_EYE_VIEWED", "presence", "all", Map.of(), Map.of(),
                     "Consulta ao painel O olho de Deus");
@@ -113,7 +159,9 @@ public class PresenceService {
         Query q = Query.of(Collections.PRESENCE).where("updatedAt", Query.Op.GTE, Instant.now(clock).minus(LIVE));
         return store.query(q.limit(2_000), Presence.class).stream()
                 .filter(p -> kind == null || p.kind() == kind)
-                .map(p -> new LivePosition(p.userId(), p.name(), p.kind(), p.lat(), p.lng(), p.accuracyM(), p.updatedAt()))
+                .filter(p -> cityId == null || cityId.isBlank() || ("none".equals(cityId) ? p.cityId() == null : cityId.equals(p.cityId())))
+                .map(p -> new LivePosition(p.userId(), p.name(), p.kind(), p.lat(), p.lng(), p.accuracyM(), p.updatedAt(),
+                        p.ip(), device(p.userAgent()), p.cityId(), p.cityName()))
                 .toList();
     }
 

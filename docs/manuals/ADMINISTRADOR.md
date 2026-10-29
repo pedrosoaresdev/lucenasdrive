@@ -48,6 +48,24 @@ Ninguém altera os próprios papéis. O papel OWNER não é concedido pelo paine
 ## O olho de Deus
 Menu **Visão geral › O olho de Deus** (somente Administrador e Proprietário). Mostra no mapa e na lista os passageiros
 e motoristas que **ativaram** "Compartilhar minha localização com a equipe" no app e estão com o app aberto nos
-últimos 5 minutos: nome, tipo (motorista ou passageiro), posição, precisão e horário. Filtre por tipo ou busque pelo
-nome; clique no marcador para ver nome e tipo. Quem não ativou não aparece. Cada abertura do painel é registrada na
+últimos 5 minutos: nome, tipo (motorista ou passageiro), **cidade** (pela área de cobertura; fora delas, o nome do
+lugar), posição, precisão, **IP**, **aparelho** (navegador e sistema) e horário.
+- **Cidade:** escolha uma cidade para filtrar e centralizar o mapa (ou "Fora das áreas atendidas"); "Mostrar áreas"
+  desenha as regiões da cidade. Os totais por cidade aparecem acima do mapa.
+- **Buscar local:** digite endereço, bairro, cidade ou "lat, lng" para ir ao ponto; ◎ usa a sua localização.
+- **Lista:** busca por nome, cidade ou IP; "Ver no mapa" aproxima na pessoa; "Abrir em nova aba" abre o ponto no
+  OpenStreetMap; "Cadastro" leva à ficha. Atualização automática a cada 15 s (pode pausar).
+- O IP é o endereço de internet de onde o app enviou a posição; em testes no mesmo computador aparece 127.0.0.1. Quem não ativou não aparece. Cada abertura do painel é registrada na
 auditoria. Use apenas para suporte e segurança, conforme a política interna e a LGPD.
+
+## Mapa operacional
+Corridas ativas no mapa com as mesmas ferramentas (cidade, busca de local, áreas), filtro por etapa (procurando,
+aceita, a caminho, chegou, em viagem), busca por código, motorista ou placa, e a opção de exibir embarque e destino.
+
+## Gestão geográfica — editar regiões
+Em **Comercial › Gestão geográfica**, escolha a cidade. Em cada área: **Ver** (centraliza), **Editar** e
+**Ativar/Desativar**. Ao editar, os vértices aparecem como quadradinhos laranja no mapa: **arraste** para ajustar,
+**clique** no mapa para acrescentar, use **Desfazer último** ou **Limpar e redesenhar**, ou cole os vértices
+("lat, lng" por linha). Altere nome, tipo, multiplicador e observações e clique em **Salvar alterações** (pede
+justificativa e fica na auditoria). As mudanças valem para as próximas cotações. Em **Editar dados da cidade**,
+altere nome, UF e centro.

@@ -48,7 +48,8 @@ enquanto a solicitação não estiver concluída. A definição final de prazos 
 - Base legal: **consentimento** (art. 7º, I), livre e revogável. O app só convida; nada é enviado sem o "Permitir"
   e sem a permissão do navegador. "Agora não" não volta a perguntar por 7 dias.
 - Prova do consentimento: `locationConsents/{uid}` com versão do texto e histórico de ativações/desativações.
-- Minimização: só a **última** posição (`presence/{uid}`: nome, tipo, lat/lng, precisão, horário), enviada no
+- Minimização: só a **última** posição (`presence/{uid}`: nome, tipo, lat/lng, precisão, horário, IP, navegador e
+  cidade atendida), enviada no
   máximo a cada 10–20 s com o app aberto; some do painel após 5 min e é **apagada após 30 min**; desligar apaga na hora.
 - Acesso: somente ADMIN/OWNER (verificado no servidor, com MFA); abertura do painel registrada na auditoria
   (`GOD_EYE_VIEWED`). Clientes não leem essas coleções (regras do Firestore).

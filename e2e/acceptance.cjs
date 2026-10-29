@@ -181,6 +181,19 @@ async function toastText(page) {
     step('Admin cadastra cidade e área de cobertura (polígono)', true);
     await adm.screenshot({ path: path.join(OUT, '02-admin-geografia.png') });
 
+    // Edição de região: renomear e ajustar (mesmo polígono, vértices carregados para edição)
+    const areaRow = adm.locator('.item', { hasText: 'Cobertura central' });
+    await areaRow.getByRole('button', { name: 'Editar' }).click();
+    await adm.getByText('Editando: Cobertura central').waitFor();
+    await adm.fill('input[aria-label="Nome da área"]', 'Cobertura central ampliada');
+    await adm.getByRole('button', { name: 'Salvar alterações' }).click();
+    await confirmReason(adm, 'Ajuste do nome da cobertura');
+    await stepUpIfAsked();
+    await adm.getByText('Área atualizada.').waitFor({ timeout: 15000 });
+    await adm.locator('.item', { hasText: 'Cobertura central ampliada' }).waitFor();
+    await adm.screenshot({ path: path.join(OUT, '02b-admin-geografia-edicao.png'), fullPage: true });
+    step('Admin edita a região cadastrada e salva (auditado)', true);
+
     await adm.goto(`${ADM}/tarifas`);
     await adm.locator('select[aria-label="Cidade"]').selectOption({ label: `${cityName} - PB` });
     await adm.locator('section', { hasText: 'Lucena Essencial' }).getByRole('button', { name: 'Configurar' }).click();
@@ -295,8 +308,9 @@ async function toastText(page) {
     await pax.locator('#origin').fill('Rua das Acácias 100');
     await pax.getByRole('option', { name: /Rua das Acácias, 100/ }).click({ timeout: 15000 });
     await pax.locator('.leaflet-container').first().waitFor({ timeout: 15000 });
-    step('Mapa OpenStreetMap carregado e endereço encontrado pela busca (sem chave do Google)',
-      (await pax.locator('.ld-osm-marker').count()) >= 1, 'Rua das Acácias, 100 - Centro - Cidade Teste - Paraíba');
+    await pax.locator('.ld-osm-marker').first().waitFor({ timeout: 15000 });
+    step('Mapa OpenStreetMap carregado e endereço encontrado pela busca (sem chave do Google)', true,
+      'Rua das Acácias, 100 - Centro - Cidade Teste - Paraíba');
     await pax.locator('#destination').fill(DEST);
     await pax.locator('input[aria-label="Cupom de desconto"]').fill(coupon);
     await pax.getByRole('button', { name: 'Ver preços' }).click();
@@ -407,11 +421,16 @@ async function toastText(page) {
     await pax.getByRole('button', { name: 'Desligar' }).waitFor({ timeout: 15000 }); // compartilhamento ativo
     await adm.goto(`${ADM}/olho-de-deus`);
     const eye = adm.locator('.list');
-    await eye.getByText('Passageira Teste Lima').waitFor({ timeout: 30000 });
-    await eye.getByText('Motorista Teste Silva').waitFor({ timeout: 30000 });
+    await eye.getByText('Passageira Teste Lima').first().waitFor({ timeout: 30000 });
+    await eye.getByText('Motorista Teste Silva').first().waitFor({ timeout: 30000 });
+    await eye.getByText(cityName).first().waitFor({ timeout: 15000 }); // cidade identificada pela área de cobertura
+    const eyeText = await eye.innerText();
+    if (!/IP\s*\n?\s*\d/.test(eyeText) || !/Aparelho/.test(eyeText)) throw new Error('IP/aparelho ausentes no painel');
+    await adm.locator('admin-map-tools select').selectOption({ label: `${cityName} - PB` });
+    await eye.getByText('Passageira Teste Lima').first().waitFor({ timeout: 15000 });
     await adm.screenshot({ path: path.join(OUT, '10b-admin-olho-de-deus.png'), fullPage: true });
     step('Admin vê no "O olho de Deus" passageiro e motorista que ativaram a localização', true,
-      (await eye.innerText()).includes('Motorista') ? 'nome + tipo exibidos' : '');
+      'nome, tipo, cidade, IP e aparelho; filtro por cidade');
 
     // ------------------------------------------------ Nota do passageiro no perfil
     await pax.goto(`${PAX}/perfil`);

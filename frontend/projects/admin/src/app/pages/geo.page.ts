@@ -12,8 +12,8 @@ const TYPE: Record<string, { label: string; color: string }> = {
 };
 
 /**
- * Gestão geográfica: municípios atendidos e polígonos operacionais. Ruas e endereços vêm da Google
- * Maps Platform (busca); apenas as áreas necessárias às regras ficam no banco.
+ * Gestão geográfica: municípios atendidos e polígonos operacionais (criar, editar com vértices arrastáveis,
+ * ativar/desativar). Ruas e endereços vêm do provedor de mapas; só as áreas das regras ficam no banco.
  */
 @Component({
   selector: 'admin-geo',
@@ -43,19 +43,38 @@ const TYPE: Record<string, { label: string; color: string }> = {
           }
         </section>
         @if (city(); as c) {
+          @if (canEdit()) {
+            <details class="card"><summary>Editar dados de {{ c.name }}</summary>
+              <div class="stack form">
+                <input class="input" [(ngModel)]="cityForm.name" placeholder="Nome do município" aria-label="Nome do município" />
+                <input class="input" [(ngModel)]="cityForm.state" maxlength="2" placeholder="UF" aria-label="UF" />
+                <ld-place-search placeholder="Novo centro da cidade (opcional)" (selected)="cityForm.center = $event" />
+                <span class="small muted">Centro atual: {{ (cityForm.center ?? c.center).lat.toFixed(5) }}, {{ (cityForm.center ?? c.center).lng.toFixed(5) }}</span>
+                <button class="btn primary" (click)="saveCity(c)" [disabled]="!cityForm.name || cityForm.state.length !== 2">Salvar cidade</button>
+              </div>
+            </details>
+          }
           <section class="card stack">
             <div class="row between"><h2>Áreas · {{ c.name }}</h2>
               @if (canEdit()) { <button class="btn ghost sm" (click)="toggleCity(c)">{{ c.active ? 'Desativar cidade' : 'Ativar cidade' }}</button> }</div>
             @for (a of areas(); track a.id) {
-              <div class="row between item static">
+              <div class="item static" [class.sel]="editing()?.id === a.id">
                 <span><span class="dot" [style.background]="type[a.type].color"></span><strong>{{ a.name }}</strong>
-                  <span class="small muted"> · {{ type[a.type].label }} @if (a.fareMultiplierBp) { · {{ a.fareMultiplierBp / 10000 }}× }</span></span>
-                @if (canEdit()) { <button class="btn ghost sm" (click)="toggleArea(a)">{{ a.active ? 'Desativar' : 'Ativar' }}</button> }
-                @else { <span class="badge">{{ a.active ? 'Ativa' : 'Inativa' }}</span> }
+                  <span class="small muted"> · {{ type[a.type].label }} @if (a.fareMultiplierBp) { · {{ a.fareMultiplierBp / 10000 }}× }
+                    · {{ a.polygon.length }} vértices</span>
+                  @if (!a.active) { <span class="badge">Inativa</span> }</span>
+                <span class="row">
+                  <button class="btn ghost sm" (click)="view(a)">Ver</button>
+                  @if (canEdit()) {
+                    <button class="btn ghost sm" (click)="edit(a)" [disabled]="editing()?.id === a.id">Editar</button>
+                    <button class="btn ghost sm" (click)="toggleArea(a)">{{ a.active ? 'Desativar' : 'Ativar' }}</button>
+                  }
+                </span>
               </div>
             } @empty { <p class="small muted">Nenhuma área. Sem área de cobertura ativa, corridas não podem ser solicitadas.</p> }
             @if (canEdit()) {
-              <details [open]="drawing()" (toggle)="drawing.set($any($event.target).open)"><summary>Nova área (clique no mapa para desenhar)</summary>
+              <details [open]="drawing()" (toggle)="onToggleForm($any($event.target).open)">
+                <summary>{{ editing() ? 'Editando: ' + editing()!.name : 'Nova área (clique no mapa para desenhar)' }}</summary>
                 <div class="stack form">
                   <input class="input" [(ngModel)]="newArea.name" placeholder="Nome da área" aria-label="Nome da área" />
                   <select class="input" [(ngModel)]="newArea.type" aria-label="Tipo">
@@ -63,21 +82,38 @@ const TYPE: Record<string, { label: string; color: string }> = {
                   @if (newArea.type === 'FARE_REGION') {
                     <input class="input" type="number" step="0.05" min="1" max="3" [(ngModel)]="newArea.multiplier" placeholder="Multiplicador (ex.: 1.2)" aria-label="Multiplicador" />
                   }
+                  <textarea class="input" [(ngModel)]="newArea.notes" maxlength="500" placeholder="Observações (opcional)" aria-label="Observações"></textarea>
+                  <p class="small muted">Clique no mapa para adicionar vértices. Arraste os quadradinhos laranja para ajustar o desenho.</p>
+                  <div class="row">
+                    <button class="btn ghost sm" type="button" (click)="undoVertex()" [disabled]="!draft().length">Desfazer último</button>
+                    <button class="btn ghost sm" type="button" (click)="draft.set([])" [disabled]="!draft().length">Limpar e redesenhar</button>
+                  </div>
                   <label class="small" for="vtx">Ou informe os vértices (um "lat, lng" por linha)</label>
                   <textarea id="vtx" class="input mono" [(ngModel)]="vertexText" placeholder="-7.10, -34.88&#10;-7.10, -34.80&#10;-7.18, -34.80"></textarea>
                   <button class="btn ghost sm" type="button" (click)="applyVertices()" [disabled]="!vertexText.trim()">Usar vértices digitados</button>
-                  <p class="small muted">{{ draft().length }} vértice(s). Mínimo 3.
-                    @if (draft().length) { <button class="btn link" (click)="draft.set([])">Limpar</button> }</p>
-                  <button class="btn primary" (click)="createArea(c)" [disabled]="draft().length < 3 || !newArea.name">Salvar área</button>
+                  <p class="small muted">{{ draft().length }} vértice(s). Mínimo 3.</p>
+                  @if (editing(); as e) {
+                    <div class="row">
+                      <button class="btn primary" (click)="saveArea(e)" [disabled]="draft().length < 3 || !newArea.name">Salvar alterações</button>
+                      <button class="btn ghost" (click)="cancelEdit()">Cancelar</button>
+                    </div>
+                  } @else {
+                    <button class="btn primary" (click)="createArea(c)" [disabled]="draft().length < 3 || !newArea.name">Salvar área</button>
+                  }
                 </div>
               </details>
             }
           </section>
         }
       </div>
-      <div class="card map-card">
-        <ld-map [center]="city()?.center ?? { lat: -14.235, lng: -51.925 }" [zoom]="12" [polygons]="polygons()" [draftPath]="draft()"
-                [fitToContent]="false" (mapClick)="addVertex($event)" />
+      <div class="stack">
+        <ld-place-search placeholder="Ir para endereço, bairro ou cidade no mapa" label="Buscar local no mapa"
+                         inputId="geo-search" (selected)="focus.set({ lat: $event.lat, lng: $event.lng, zoom: 15 })" />
+        <div class="card map-card">
+          <ld-map [center]="city()?.center ?? { lat: -14.235, lng: -51.925 }" [zoom]="12" [polygons]="polygons()" [draftPath]="draft()"
+                  [focus]="focus()" [editableDraft]="drawing()" (draftChange)="draft.set($event)"
+                  [fitToContent]="false" (mapClick)="addVertex($event)" />
+        </div>
       </div>
     </div>
   `,
@@ -86,7 +122,7 @@ const TYPE: Record<string, { label: string; color: string }> = {
     .map-card { padding: 0; overflow: hidden; height: 75vh; position: sticky; top: 76px; } .map-card ld-map { height: 100%; }
     .item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px; border-radius: 10px;
       border: 1px solid var(--ld-border); background: var(--ld-surface); cursor: pointer; font: inherit; color: inherit; width: 100%; }
-    .item.sel { border-color: var(--ld-primary); background: var(--ld-primary-soft); } .item.static { cursor: default; }
+    .item.sel { border-color: var(--ld-primary); background: var(--ld-primary-soft); } .item.static { cursor: default; flex-wrap: wrap; }
     .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
     .form { margin-top: 10px; } summary { cursor: pointer; font-weight: 600; }
     @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } .map-card { position: static; height: 50vh; } }
@@ -103,11 +139,15 @@ export default class GeoPage implements OnInit {
   protected readonly draft = signal<{ lat: number; lng: number }[]>([]);
   protected readonly drawing = signal(false);
   protected newCity = { name: '', state: '', ibgeCode: '', center: null as Place | null };
-  protected newArea = { name: '', type: 'COVERAGE', multiplier: 1.2 };
+  protected newArea = { name: '', type: 'COVERAGE', multiplier: 1.2, notes: '' };
+  protected cityForm = { name: '', state: '', center: null as Place | null };
+  protected readonly editing = signal<Area | null>(null);
+  protected readonly focus = signal<{ lat: number; lng: number; zoom?: number } | null>(null);
   protected vertexText = '';
   protected readonly canEdit = () => this.a.session.can('ADMIN', 'OWNER');
-  protected readonly polygons = computed<MapPolygon[]>(() => this.areas().filter((a) => a.active)
-    .map((a) => ({ id: a.id, path: a.polygon, color: TYPE[a.type].color, label: a.name })));
+  protected readonly polygons = computed<MapPolygon[]>(() => this.areas()
+    .filter((a) => a.active && a.id !== this.editing()?.id)
+    .map((a) => ({ id: a.id, path: a.polygon, color: TYPE[a.type].color, label: `${a.name} (${TYPE[a.type].label})` })));
 
   async ngOnInit(): Promise<void> {
     this.cities.set(await this.api.get<City[]>('/admin/cities'));
@@ -116,12 +156,72 @@ export default class GeoPage implements OnInit {
 
   protected async select(c: City): Promise<void> {
     this.city.set(c);
-    this.draft.set([]);
+    this.cancelEdit();
+    this.cityForm = { name: c.name, state: c.state, center: null };
+    this.focus.set({ ...c.center, zoom: 12 });
     this.areas.set(await this.api.get<Area[]>(`/admin/cities/${c.id}/areas`));
   }
 
   protected addVertex(p: { lat: number; lng: number }): void {
     if (this.drawing()) this.draft.update((d) => [...d, p]);
+  }
+
+  protected onToggleForm(open: boolean): void {
+    this.drawing.set(open);
+    if (!open && this.editing()) this.cancelEdit();
+  }
+
+  protected undoVertex(): void {
+    this.draft.update((d) => d.slice(0, -1));
+  }
+
+  /** Centraliza o mapa na área (média dos vértices). */
+  protected view(a: Area): void {
+    const n = a.polygon.length || 1;
+    this.focus.set({ lat: a.polygon.reduce((s, p) => s + p.lat, 0) / n, lng: a.polygon.reduce((s, p) => s + p.lng, 0) / n, zoom: 14 });
+  }
+
+  protected edit(a: Area): void {
+    this.editing.set(a);
+    this.newArea = { name: a.name, type: a.type, multiplier: a.fareMultiplierBp ? a.fareMultiplierBp / 10000 : 1.2, notes: a.notes ?? '' };
+    this.draft.set(a.polygon.map((p) => ({ lat: p.lat, lng: p.lng })));
+    this.vertexText = a.polygon.map((p) => `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`).join('\n');
+    this.drawing.set(true);
+    this.view(a);
+  }
+
+  protected cancelEdit(): void {
+    this.editing.set(null);
+    this.draft.set([]);
+    this.vertexText = '';
+    this.newArea = { name: '', type: 'COVERAGE', multiplier: 1.2, notes: '' };
+  }
+
+  /** Atualiza nome, tipo, multiplicador, observações e polígono da área (justificativa auditada). */
+  protected async saveArea(area: Area): Promise<void> {
+    const body = { cityId: area.cityId, name: this.newArea.name, type: this.newArea.type, polygon: this.draft(), active: area.active,
+      fareMultiplierBp: this.newArea.type === 'FARE_REGION' ? Math.round(this.newArea.multiplier * 10000) : null,
+      notes: this.newArea.notes || null };
+    const ok = await this.a.withReason('Salvar alterações da área', (reason) => this.api.put(`/admin/areas/${area.id}`, { ...body, reason }),
+      { minLength: 5, ok: 'Área atualizada.' });
+    if (ok) {
+      this.cancelEdit();
+      this.drawing.set(false);
+      await this.select(this.city()!);
+    }
+  }
+
+  protected async saveCity(c: City): Promise<void> {
+    const f = this.cityForm;
+    const center = f.center ? { lat: f.center.lat, lng: f.center.lng } : c.center;
+    const ok = await this.a.withReason('Salvar dados da cidade', (reason) => this.api.put(`/admin/cities/${c.id}`,
+      { name: f.name, state: f.state.toUpperCase(), center, active: c.active, timezone: c.timezone, reason }),
+      { minLength: 5, ok: 'Cidade atualizada.' });
+    if (ok) {
+      await this.ngOnInit();
+      const updated = this.cities().find((x) => x.id === c.id);
+      if (updated) await this.select(updated);
+    }
   }
 
   protected applyVertices(): void {
@@ -157,12 +257,13 @@ export default class GeoPage implements OnInit {
 
   protected async createArea(c: City): Promise<void> {
     const body = { cityId: c.id, name: this.newArea.name, type: this.newArea.type, polygon: this.draft(), active: true,
-      fareMultiplierBp: this.newArea.type === 'FARE_REGION' ? Math.round(this.newArea.multiplier * 10000) : null };
+      fareMultiplierBp: this.newArea.type === 'FARE_REGION' ? Math.round(this.newArea.multiplier * 10000) : null,
+      notes: this.newArea.notes || null };
     const ok = await this.a.exec(() => this.api.post('/admin/areas', body), 'Área criada.');
     if (ok) {
       this.draft.set([]);
       this.vertexText = '';
-      this.newArea.name = '';
+      this.newArea = { name: '', type: 'COVERAGE', multiplier: 1.2, notes: '' };
       await this.select(c);
     }
   }

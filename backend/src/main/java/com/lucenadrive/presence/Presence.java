@@ -7,7 +7,7 @@ import java.time.Instant;
  * apagada ao revogar o consentimento e removida automaticamente quando fica antiga.
  */
 public record Presence(String userId, String name, Kind kind, double lat, double lng, Double accuracyM,
-                       Instant updatedAt) {
+                       Instant updatedAt, String ip, String userAgent, String cityId, String cityName) {
 
     public enum Kind { PASSENGER, DRIVER }
 }

@@ -76,6 +76,11 @@ export class MapComponent implements OnDestroy {
   readonly draftPath = input<{ lat: number; lng: number }[]>([]);
   readonly fitToContent = input(true);
   readonly mapClick = output<{ lat: number; lng: number }>();
+  /** Centraliza o mapa (ex.: cidade ou endereço buscado). Mude a referência do objeto para repetir. */
+  readonly focus = input<{ lat: number; lng: number; zoom?: number } | null>(null);
+  /** Vértices do rascunho podem ser arrastados (edição de regiões). */
+  readonly editableDraft = input(false);
+  readonly draftChange = output<{ lat: number; lng: number }[]>();
 
   private map?: google.maps.Map;
   private gMarkers = new Map<string, google.maps.Marker>();
@@ -90,6 +95,8 @@ export class MapComponent implements OnDestroy {
   private lLine?: Leaflet.Polyline;
   private lPolys: Leaflet.Polygon[] = [];
   private lDraft?: Leaflet.Polyline;
+  private lHandles: Leaflet.Marker[] = [];
+  private gHandles: google.maps.Marker[] = [];
   private fitted = false;
 
   constructor() {
@@ -127,6 +134,16 @@ export class MapComponent implements OnDestroy {
       this.syncPolygons(this.polygons());
       this.syncDraft(this.draftPath());
       this.fit();
+    });
+
+    effect(() => {
+      const f = this.focus();
+      if (!f || !this.ready()) return;
+      this.lmap?.setView(f, f.zoom ?? 14);
+      if (this.map) {
+        this.map.panTo(f);
+        this.map.setZoom(f.zoom ?? 14);
+      }
     });
 
     effect(() => {
@@ -197,6 +214,18 @@ export class MapComponent implements OnDestroy {
     this.gDraft = path.length
       ? new google.maps.Polyline({ map: this.map, path: [...path, path[0]], strokeColor: '#f59e0b', strokeWeight: 3 })
       : undefined;
+    this.gHandles.forEach((h) => h.setMap(null));
+    this.gHandles = [];
+    if (!this.editableDraft()) return;
+    path.forEach((pt, i) => {
+      const h = new google.maps.Marker({ map: this.map, position: pt, draggable: true, title: `Vértice ${i + 1}`,
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#f59e0b', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
+      h.addListener('dragend', (e: google.maps.MapMouseEvent) => {
+        if (!e.latLng) return;
+        this.draftChange.emit(this.draftPath().map((p, j) => (j === i ? { lat: e.latLng!.lat(), lng: e.latLng!.lng() } : p)));
+      });
+      this.gHandles.push(h);
+    });
   }
 
   private fit(): void {
@@ -276,8 +305,12 @@ export class MapComponent implements OnDestroy {
 
   private lSyncPolygons(list: MapPolygon[]): void {
     this.lPolys.forEach((p) => p.remove());
-    this.lPolys = list.map((p) => this.L!.polygon(p.path, { color: p.color ?? '#4338ca', weight: 2,
-      fillColor: p.color ?? '#4338ca', fillOpacity: .12, interactive: false }).addTo(this.lmap!));
+    this.lPolys = list.map((p) => {
+      const poly = this.L!.polygon(p.path, { color: p.color ?? '#4338ca', weight: 2,
+        fillColor: p.color ?? '#4338ca', fillOpacity: .12, interactive: !!p.label && !this.editableDraft() });
+      if (p.label) poly.bindTooltip(p.label, { sticky: true });
+      return poly.addTo(this.lmap!);
+    });
   }
 
   private lSyncDraft(path: { lat: number; lng: number }[]): void {
@@ -285,6 +318,21 @@ export class MapComponent implements OnDestroy {
     this.lDraft = path.length
       ? this.L!.polyline([...path, path[0]], { color: '#f59e0b', weight: 3 }).addTo(this.lmap!)
       : undefined;
+    this.lHandles.forEach((h) => h.remove());
+    this.lHandles = [];
+    if (!this.editableDraft()) return;
+    path.forEach((pt, i) => {
+      const h = this.L!.marker(pt, { draggable: true, title: `Vértice ${i + 1} (arraste para mover)`,
+        icon: this.L!.divIcon({ className: 'ld-osm-marker', iconSize: [14, 14], iconAnchor: [7, 7],
+          html: '<span style="display:block;width:14px;height:14px;border-radius:3px;background:#f59e0b;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5)"></span>' }) })
+        .addTo(this.lmap!);
+      h.on('dragend', () => {
+        const ll = h.getLatLng();
+        const next = this.draftPath().map((p, j) => (j === i ? { lat: ll.lat, lng: ll.lng } : p));
+        this.draftChange.emit(next);
+      });
+      this.lHandles.push(h);
+    });
   }
 
   private lFit(): void {
