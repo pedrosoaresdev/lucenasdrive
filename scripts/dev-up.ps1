@@ -1,4 +1,4 @@
-# Sobe o ambiente local do Lucena Drive no Windows (PowerShell), sem Docker:
+﻿# Sobe o ambiente local do Lucena Drive no Windows (PowerShell), sem Docker:
 # Firebase Emulator Suite, backend (perfil dev) e os 3 portais, cada um em sua própria janela.
 # Requisitos: Java 21, Maven 3.9+, Node 24 (ou >= 22.22.3), Git.
 # Uso (na pasta do projeto):  Set-ExecutionPolicy -Scope Process Bypass; .\scripts\dev-up.ps1
@@ -42,7 +42,13 @@ Get-Content $KeysFile | ForEach-Object { $p = $_.Split('=', 2); if ($p.Length -e
 
 Write-Host '> Instalando dependências (primeira vez demora alguns minutos)...'
 if (-not (Test-Path (Join-Path $Root 'firebase\node_modules'))) { npm ci --prefix (Join-Path $Root 'firebase') }
-if (-not (Test-Path (Join-Path $Root 'frontend\node_modules'))) { npm ci --prefix (Join-Path $Root 'frontend') }
+# Reinstala quando o package-lock.json mudou (ex.: nova biblioteca, como o mapa OpenStreetMap).
+function Test-NeedsInstall($dir) {
+  $marker = Join-Path $dir 'node_modules\.package-lock.json'
+  if (-not (Test-Path $marker)) { return $true }
+  return (Get-Item (Join-Path $dir 'package-lock.json')).LastWriteTime -gt (Get-Item $marker).LastWriteTime
+}
+if (Test-NeedsInstall (Join-Path $Root 'frontend')) { npm ci --prefix (Join-Path $Root 'frontend') }
 
 Write-Host '> Firebase Emulator Suite (nova janela)'
 Start-Process $Shell -ArgumentList '-NoExit', '-Command',

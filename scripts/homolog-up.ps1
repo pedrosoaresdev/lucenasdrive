@@ -79,7 +79,13 @@ $MapsServerKey = "$(Get-Content $MapsKeyFile -Raw)".Trim()
 
 Write-Host '> Instalando dependencias (se necessario)...'
 if (-not (Test-Path (Join-Path $Root 'firebase\node_modules'))) { npm ci --prefix (Join-Path $Root 'firebase') }
-if (-not (Test-Path (Join-Path $Root 'frontend\node_modules'))) { npm ci --prefix (Join-Path $Root 'frontend') }
+# Reinstala quando o package-lock.json mudou (ex.: nova biblioteca, como o mapa OpenStreetMap).
+function Test-NeedsInstall($dir) {
+  $marker = Join-Path $dir 'node_modules\.package-lock.json'
+  if (-not (Test-Path $marker)) { return $true }
+  return (Get-Item (Join-Path $dir 'package-lock.json')).LastWriteTime -gt (Get-Item $marker).LastWriteTime
+}
+if (Test-NeedsInstall (Join-Path $Root 'frontend')) { npm ci --prefix (Join-Path $Root 'frontend') }
 
 # 4) Regras e indices: ja publicados no projeto lucenasdrive. Republique somente quando mudarem,
 #    com:  .\scripts\homolog-up.ps1 -DeployRules   (usa o SEU login do Firebase CLI no navegador).
