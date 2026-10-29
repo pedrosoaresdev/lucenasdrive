@@ -40,14 +40,14 @@ Na primeira execução o script:
 - pede o caminho do JSON da conta de serviço (recusa se estiver dentro da pasta do projeto);
 - gera as chaves do backend em `.homolog\keys.env` (fora do git) — **faça backup desse arquivo**: sem ele,
   CPFs criptografados e autenticadores cadastrados ficam ilegíveis;
-- abre o login do Firebase CLI e publica regras e índices (`firebase deploy --only firestore:rules,firestore:indexes,storage --project lucenasdrive`);
 - pede e-mail, nome, CPF e senha do **proprietário**, cria a conta no Authentication e envia o e-mail de
   confirmação. CPF e senha não são gravados em disco; o CPF fica criptografado no Firestore;
 - inicia o backend (ligado ao `lucenasdrive`) e os 3 portais em `http://127.0.0.1:4200/4201/4202`.
 
 Depois: confirme o e-mail do proprietário, entre no painel (4202) e cadastre o app autenticador.
 
-Para republicar regras/índices depois de mudanças: `.\scripts\homolog-up.ps1 -DeployRules`.
+Regras e índices já foram publicados. Para republicar depois de mudanças: `.\scripts\homolog-up.ps1 -DeployRules`
+(abre o login do Firebase CLI no navegador; conclua o login na mesma máquina).
 
 ## 3. Roteiro de teste sugerido
 Mesmo roteiro do `docs/INSTALL.md` (cidade e área, tarifa, cupom, motorista, documentos, aprovação, corrida,

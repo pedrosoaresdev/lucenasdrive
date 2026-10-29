@@ -70,8 +70,9 @@ Write-Host '> Instalando dependencias (se necessario)...'
 if (-not (Test-Path (Join-Path $Root 'firebase\node_modules'))) { npm ci --prefix (Join-Path $Root 'firebase') }
 if (-not (Test-Path (Join-Path $Root 'frontend\node_modules'))) { npm ci --prefix (Join-Path $Root 'frontend') }
 
-# 4) Regras e indices (uma vez, ou quando mudarem). Usa o SEU login do Firebase CLI.
-if ($DeployRules -or -not (Test-Path (Join-Path $State 'rules-deployed'))) {
+# 4) Regras e indices: ja publicados no projeto lucenasdrive. Republique somente quando mudarem,
+#    com:  .\scripts\homolog-up.ps1 -DeployRules   (usa o SEU login do Firebase CLI no navegador).
+if ($DeployRules) {
   Write-Host '> Publicando regras do Firestore/Storage e indices no projeto lucenasdrive (abre o login do Firebase se preciso)'
   Push-Location (Join-Path $Root 'firebase')
   npx firebase login
