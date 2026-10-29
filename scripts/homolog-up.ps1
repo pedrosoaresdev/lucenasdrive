@@ -66,6 +66,16 @@ if (-not (Test-Path $KeysFile)) {
 $Keys = @{}
 Get-Content $KeysFile | ForEach-Object { $p = $_.Split('=', 2); if ($p.Length -eq 2) { $Keys[$p[0]] = $p[1] } }
 
+# 3b) Chave de SERVIDOR do Google Maps (Routes API: rota, distancia e tempo reais no preco). Opcional.
+#     Fica so em .homolog (fora do git). Sem ela, o sistema usa a estimativa em linha reta (sinalizada na tela).
+$MapsKeyFile = Join-Path $State 'maps-server-key.txt'
+if (-not (Test-Path $MapsKeyFile)) {
+  Write-Host 'Chave de SERVIDOR do Google Maps (Routes API). Deixe vazio e aperte Enter para pular.'
+  $mk = (Read-Host 'Chave de servidor').Trim()
+  Set-Content -Encoding ASCII $MapsKeyFile $mk
+}
+$MapsServerKey = "$(Get-Content $MapsKeyFile -Raw)".Trim()
+
 Write-Host '> Instalando dependencias (se necessario)...'
 if (-not (Test-Path (Join-Path $Root 'firebase\node_modules'))) { npm ci --prefix (Join-Path $Root 'firebase') }
 if (-not (Test-Path (Join-Path $Root 'frontend\node_modules'))) { npm ci --prefix (Join-Path $Root 'frontend') }
@@ -129,6 +139,7 @@ $envCmd = @(
   "`$env:LUCENA_ADMIN_MFA_TOKEN_SECRET='$($Keys['LUCENA_ADMIN_MFA_TOKEN_SECRET'])'",
   "`$env:CORS_ALLOWED_ORIGINS='$origins'",
   "`$env:MAPS_ALLOW_STRAIGHT_LINE_FALLBACK='true'",
+  "`$env:MAPS_SERVER_API_KEY='$MapsServerKey'",
   "`$env:PAYMENTS_ENVIRONMENT='sandbox'"
 ) + $bootstrap + @(
   "cd '$Root\backend'",
