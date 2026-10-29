@@ -68,7 +68,7 @@ public class SecurityConfig {
                                 errors.write(req, res, ErrorCode.FORBIDDEN, "Acesso negado.");
                             }
                         }))
-                .addFilterBefore(new RequestTraceFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new RequestTraceFilter(errors), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(rateFilter, FirebaseAuthenticationFilter.class);
         return http.build();

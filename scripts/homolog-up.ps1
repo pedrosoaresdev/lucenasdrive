@@ -20,6 +20,26 @@ Test-Command java 'Instale o Java 21+.'
 Test-Command mvn 'Instale o Maven 3.9+.'
 Test-Command npm 'Instale o Node.js 24 LTS.'
 
+# Encerra execucoes anteriores (janelas antigas seguram arquivos e impedem atualizar dependencias e o backend).
+function Stop-LucenaPorts([int[]]$ports) {
+  foreach ($port in $ports) {
+    $owners = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
+      Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($procId in $owners) {
+      if ($procId -and $procId -ne $PID) {
+        $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+        if ($p) { Write-Host "  Encerrando $($p.ProcessName) (porta $port)"; Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue }
+      }
+    }
+  }
+}
+Write-Host '> Encerrando execucoes anteriores do Lucena Drive (se houver)...'
+Stop-LucenaPorts @(8080, 4200, 4201, 4202)
+# processos filhos (esbuild do Angular) nao terminam junto com o node no Windows
+Get-Process esbuild -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$Root*" } |
+  ForEach-Object { Write-Host '  Encerrando esbuild antigo'; Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+Start-Sleep -Seconds 2
+
 function Wait-Url($url) {
   for ($i = 0; $i -lt 240; $i++) {
     try { Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2 | Out-Null; return } catch { Start-Sleep -Seconds 1 }
@@ -85,7 +105,10 @@ function Test-NeedsInstall($dir) {
   if (-not (Test-Path $marker)) { return $true }
   return (Get-Item (Join-Path $dir 'package-lock.json')).LastWriteTime -gt (Get-Item $marker).LastWriteTime
 }
-if (Test-NeedsInstall (Join-Path $Root 'frontend')) { npm ci --prefix (Join-Path $Root 'frontend') }
+if (Test-NeedsInstall (Join-Path $Root 'frontend')) {
+  npm ci --prefix (Join-Path $Root 'frontend')
+  if ($LASTEXITCODE -ne 0) { throw 'Falha ao instalar as dependencias do frontend. Feche janelas antigas do Lucena Drive e o VS Code, e rode de novo.' }
+}
 
 # 4) Regras e indices: ja publicados no projeto lucenasdrive. Republique somente quando mudarem,
 #    com:  .\scripts\homolog-up.ps1 -DeployRules   (usa o SEU login do Firebase CLI no navegador).
@@ -133,7 +156,8 @@ if (-not (Test-Path $OwnerDone)) {
 }
 
 Write-Host '> Compilando o backend...'
-Push-Location (Join-Path $Root 'backend'); mvn -q -B package -DskipTests; Pop-Location
+Push-Location (Join-Path $Root 'backend'); mvn -q -B package -DskipTests; $mvnExit = $LASTEXITCODE; Pop-Location
+if ($mvnExit -ne 0) { throw 'Falha ao compilar o backend. Feche janelas antigas do servidor (java) e rode de novo.' }
 
 Write-Host '> Backend ligado ao Firebase lucenasdrive (nova janela)'
 $origins = 'http://localhost:4200,http://localhost:4201,http://localhost:4202,http://127.0.0.1:4200,http://127.0.0.1:4201,http://127.0.0.1:4202'

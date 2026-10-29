@@ -75,8 +75,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest req) {
-        log.error("unexpected_error path={}", req.getRequestURI(), ex);
-        return build(ErrorCode.INTERNAL_ERROR, "Erro interno. Tente novamente.", req, List.of(), Map.of());
+        String trace = MDC.get("traceId");
+        log.error("unexpected_error path={} traceId={}", req.getRequestURI(), trace, ex);
+        String code = trace == null ? "" : " (código " + trace.substring(0, Math.min(8, trace.length())) + ")";
+        return build(ErrorCode.INTERNAL_ERROR, "Erro interno" + code + ". Tente novamente; se persistir, informe o código ao suporte.",
+                req, List.of(), Map.of());
     }
 
     private ResponseEntity<ApiError> build(ErrorCode code, String message, HttpServletRequest req,
