@@ -34,7 +34,28 @@ public class DashboardService {
                           long onlineDrivers, long ridesSearching, long ridesInProgress, long ridesCompleted,
                           long ridesCancelled, long activeCoupons, double platformRatingAverage, long platformRatingCount,
                           long pendingPayouts, long openSafetyTickets, long reconciliationIssues,
-                          FinanceService.PlatformFinance finance, List<CityCount> ridesByCity, Instant generatedAt) {
+                          FinanceService.PlatformFinance finance, List<CityCount> ridesByCity, Instant generatedAt,
+                          List<String> unavailableMetrics) {
+    }
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DashboardService.class);
+
+    /**
+     * Calcula um indicador isoladamente: se falhar (ex.: índice do Firestore ainda em construção), registra o motivo
+     * no log e devolve o valor padrão, sem derrubar o painel inteiro.
+     */
+    private <T> T metric(String name, java.util.function.Supplier<T> fn, T fallback, List<String> failed) {
+        try {
+            return fn.get();
+        } catch (RuntimeException e) {
+            failed.add(name);
+            Throwable root = e;
+            while (root.getCause() != null && root.getCause() != root) {
+                root = root.getCause();
+            }
+            log.error("dashboard_metric_failed metric={} cause={}", name, root.getMessage(), e);
+            return fallback;
+        }
     }
 
     public record CityCount(String cityId, String cityName, long completedRides, long activeRides) {
@@ -57,33 +78,47 @@ public class DashboardService {
 
     public Summary summary() {
         Instant now = Instant.now(clock);
-        long passengers = store.count(Query.of(Collections.USERS).where("roles", Query.Op.ARRAY_CONTAINS, Role.PASSENGER));
-        long drivers = store.count(Query.of(Collections.DRIVER_PROFILES));
-        long approved = store.count(Query.of(Collections.DRIVER_PROFILES).eq("status", DriverStatus.APPROVED));
-        long pending = store.count(Query.of(Collections.DRIVER_PROFILES).eq("status", DriverStatus.PENDING_REVIEW));
-        long online = store.count(Query.of(Collections.DRIVER_LOCATIONS).eq("online", true));
-        long searching = store.count(Query.of(Collections.RIDES).eq("status", RideStatus.SEARCHING_DRIVER));
-        long inProgress = store.count(Query.of(Collections.RIDES).where("status", Query.Op.IN, RideStatus.WITH_DRIVER));
-        long completed = store.count(Query.of(Collections.RIDES).eq("status", RideStatus.COMPLETED));
-        long cancelled = store.count(Query.of(Collections.RIDES).eq("status", RideStatus.CANCELLED));
-        long coupons = store.count(Query.of(Collections.COUPONS).eq("active", true));
-        Map<String, Object> rs = ratings.platformStats();
-        long pendingPayouts = store.count(Query.of(Collections.PAYOUT_REQUESTS).where("status", Query.Op.IN,
-                List.of(PayoutRequest.Status.REQUESTED, PayoutRequest.Status.IN_VALIDATION, PayoutRequest.Status.PROCESSING)));
-        long safety = store.count(Query.of(Collections.SUPPORT_TICKETS).eq("category", SupportTicket.Category.SAFETY)
-                .where("status", Query.Op.IN, List.of(SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS,
-                        SupportTicket.Status.ESCALATED)));
-        long issues = finance.reconciliation().size();
-        FinanceService.PlatformFinance fin = finance.platform(Instant.EPOCH, now.plusSeconds(1));
-        List<CityCount> byCity = new ArrayList<>();
-        for (City c : store.query(Query.of(Collections.CITIES), City.class)) {
-            byCity.add(new CityCount(c.id(), c.name(),
-                    store.count(Query.of(Collections.RIDES).eq("cityId", c.id()).eq("status", RideStatus.COMPLETED)),
-                    store.count(Query.of(Collections.RIDES).eq("cityId", c.id()).where("status", Query.Op.IN, RideStatus.ACTIVE))));
-        }
+        List<String> f = new ArrayList<>();
+        long passengers = metric("Passageiros", () -> store.count(Query.of(Collections.USERS)
+                .where("roles", Query.Op.ARRAY_CONTAINS, Role.PASSENGER)), 0L, f);
+        long drivers = metric("Motoristas", () -> store.count(Query.of(Collections.DRIVER_PROFILES)), 0L, f);
+        long approved = metric("Motoristas aprovados", () -> store.count(Query.of(Collections.DRIVER_PROFILES)
+                .eq("status", DriverStatus.APPROVED)), 0L, f);
+        long pending = metric("Motoristas em análise", () -> store.count(Query.of(Collections.DRIVER_PROFILES)
+                .eq("status", DriverStatus.PENDING_REVIEW)), 0L, f);
+        long online = metric("Motoristas online", () -> store.count(Query.of(Collections.DRIVER_LOCATIONS)
+                .eq("online", true)), 0L, f);
+        long searching = metric("Corridas procurando motorista", () -> store.count(Query.of(Collections.RIDES)
+                .eq("status", RideStatus.SEARCHING_DRIVER)), 0L, f);
+        long inProgress = metric("Corridas em andamento", () -> store.count(Query.of(Collections.RIDES)
+                .where("status", Query.Op.IN, RideStatus.WITH_DRIVER)), 0L, f);
+        long completed = metric("Corridas concluídas", () -> store.count(Query.of(Collections.RIDES)
+                .eq("status", RideStatus.COMPLETED)), 0L, f);
+        long cancelled = metric("Corridas canceladas", () -> store.count(Query.of(Collections.RIDES)
+                .eq("status", RideStatus.CANCELLED)), 0L, f);
+        long coupons = metric("Cupons ativos", () -> store.count(Query.of(Collections.COUPONS).eq("active", true)), 0L, f);
+        Map<String, Object> rs = metric("Avaliações", ratings::platformStats, Map.<String, Object>of("average", 0.0, "count", 0L), f);
+        long pendingPayouts = metric("Saques pendentes", () -> store.count(Query.of(Collections.PAYOUT_REQUESTS)
+                .where("status", Query.Op.IN, List.of(PayoutRequest.Status.REQUESTED, PayoutRequest.Status.IN_VALIDATION,
+                        PayoutRequest.Status.PROCESSING))), 0L, f);
+        long safety = metric("Ocorrências de segurança", () -> store.count(Query.of(Collections.SUPPORT_TICKETS)
+                .eq("category", SupportTicket.Category.SAFETY).where("status", Query.Op.IN, List.of(SupportTicket.Status.OPEN,
+                        SupportTicket.Status.IN_PROGRESS, SupportTicket.Status.ESCALATED))), 0L, f);
+        long issues = metric("Conciliação", () -> (long) finance.reconciliation().size(), 0L, f);
+        FinanceService.PlatformFinance fin = metric("Financeiro", () -> finance.platform(Instant.EPOCH, now.plusSeconds(1)),
+                new FinanceService.PlatformFinance(Instant.EPOCH, now, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, false), f);
+        List<CityCount> byCity = metric("Corridas por cidade", () -> {
+            List<CityCount> list = new ArrayList<>();
+            for (City c : store.query(Query.of(Collections.CITIES), City.class)) {
+                list.add(new CityCount(c.id(), c.name(),
+                        store.count(Query.of(Collections.RIDES).eq("cityId", c.id()).eq("status", RideStatus.COMPLETED)),
+                        store.count(Query.of(Collections.RIDES).eq("cityId", c.id()).where("status", Query.Op.IN, RideStatus.ACTIVE))));
+            }
+            return list;
+        }, List.of(), f);
         return new Summary(passengers, drivers, approved, pending, online, searching, inProgress, completed, cancelled,
                 coupons, ((Number) rs.get("average")).doubleValue(), ((Number) rs.get("count")).longValue(),
-                pendingPayouts, safety, issues, fin, byCity, now);
+                pendingPayouts, safety, issues, fin, byCity, now, List.copyOf(f));
     }
 
     /** Série diária dos últimos N dias (fuso de Brasília). */

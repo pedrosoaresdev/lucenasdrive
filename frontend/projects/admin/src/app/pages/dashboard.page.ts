@@ -14,7 +14,7 @@ interface Summary {
   totalPassengers: number; totalDrivers: number; approvedDrivers: number; pendingDrivers: number; onlineDrivers: number;
   ridesSearching: number; ridesInProgress: number; ridesCompleted: number; ridesCancelled: number; activeCoupons: number;
   platformRatingAverage: number; platformRatingCount: number; pendingPayouts: number; openSafetyTickets: number;
-  reconciliationIssues: number; finance: Finance; ridesByCity: { cityId: string; cityName: string; completedRides: number; activeRides: number }[];
+  reconciliationIssues: number; finance: Finance; unavailableMetrics?: string[]; ridesByCity: { cityId: string; cityName: string; completedRides: number; activeRides: number }[];
   generatedAt: string;
 }
 interface DayPoint { date: string; completedRides: number; cancelledRides: number; grossCents: number; commissionCents: number; }
@@ -33,6 +33,11 @@ interface DayPoint { date: string; completedRides: number; cancelledRides: numbe
     @else {
       @let d = s()!;
       @let f = d.finance;
+      @if (d.unavailableMetrics?.length) {
+        <p class="alert warn small" role="status">Alguns indicadores não puderam ser calculados agora e aparecem zerados:
+          <strong>{{ d.unavailableMetrics!.join(', ') }}</strong>. O motivo está registrado no log do servidor
+          (em Firestore novo, costuma ser índice ainda em construção — aguarde alguns minutos).</p>
+      }
       @if (alerts().length) {
         <div class="stack alerts">@for (a of alerts(); track a.text) { <a class="alert" [class]="a.tone" [routerLink]="a.to">{{ a.text }}</a> }</div>
       }
