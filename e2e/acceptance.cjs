@@ -347,6 +347,10 @@ async function toastText(page) {
     await pax.screenshot({ path: path.join(OUT, '07-passageiro-chat.png') });
     step('Chat em tempo real entre passageiro e motorista (com mensagens de sistema)', true);
 
+    await pax.getByRole('button', { name: 'Enviar minha localização' }).click();
+    await drv.locator('.bubble', { hasText: 'Minha localização' }).getByRole('link', { name: /Abrir no mapa/ }).waitFor({ timeout: 15000 });
+    step('Passageiro compartilha a localização no chat e o motorista recebe o link do mapa', true);
+
     await drv.locator('ld-chat-panel').getByRole('button', { name: 'Fechar chat' }).click();
     await pax.locator('ld-chat-panel').getByRole('button', { name: 'Fechar chat' }).click();
 
@@ -410,6 +414,15 @@ async function toastText(page) {
     const ledgerRows = await adm.locator('section', { hasText: 'Lançamentos financeiros' }).locator('tbody tr').count();
     await adm.screenshot({ path: path.join(OUT, '09-admin-corrida.png'), fullPage: true });
     step('Admin consulta a corrida, comissão e lançamentos financeiros', ledgerRows >= 3, `${ledgerRows} lançamentos`);
+
+    await adm.goto(`${ADM}/corridas`);
+    const [ridesCsv] = await Promise.all([
+      adm.waitForEvent('download', { timeout: 20000 }),
+      (async () => { await adm.getByRole('button', { name: 'Exportar planilha' }).click(); await stepUpIfAsked(); })(),
+    ]);
+    const csvText = fs.readFileSync(await ridesCsv.path(), 'utf8');
+    step('Admin exporta planilha de corridas (CSV para Excel)', csvText.includes('Código;Solicitada em') && csvText.includes(';COMPLETED;'),
+      ridesCsv.suggestedFilename());
 
     await adm.goto(`${ADM}/painel`);
     await adm.locator('.kpi', { hasText: 'Concluídas' }).waitFor();

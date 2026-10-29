@@ -69,3 +69,10 @@ Em **Comercial › Gestão geográfica**, escolha a cidade. Em cada área: **Ver
 ("lat, lng" por linha). Altere nome, tipo, multiplicador e observações e clique em **Salvar alterações** (pede
 justificativa e fica na auditoria). As mudanças valem para as próximas cotações. Em **Editar dados da cidade**,
 altere nome, UF e centro.
+
+## Relatórios em planilha
+Em **Corridas**, "Exportar planilha" baixa um CSV (abre no Excel) com as corridas do período e da cidade filtrados
+(padrão: últimos 30 dias): datas, status, cidade, categoria, distância, valores, comissão, ganho do motorista,
+pagamento, cupom, motorista, placa e passageiro (nome público), cancelamento e avaliação. Em **Financeiro**,
+"Exportar lançamentos" baixa todos os lançamentos do período. Não há CPF, e-mail ou telefone nas planilhas, e cada
+exportação fica registrada na auditoria.

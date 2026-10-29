@@ -88,7 +88,9 @@ export interface RideView {
 
 export interface ChatMessage {
   id: string; rideId: string; senderId: string; senderRole: 'PASSENGER' | 'DRIVER' | 'SYSTEM';
-  type: 'TEXT' | 'SYSTEM'; text: string; systemEvent?: string; clientMessageId?: string; createdAt: Instantish;
+  type: 'TEXT' | 'SYSTEM' | 'LOCATION'; text: string; systemEvent?: string; clientMessageId?: string; createdAt: Instantish;
+  /** presentes quando type === 'LOCATION' */
+  lat?: number | null; lng?: number | null;
   /** estado local do envio */
   pending?: boolean; failed?: boolean;
 }

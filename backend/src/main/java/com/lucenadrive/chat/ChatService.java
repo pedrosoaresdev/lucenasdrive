@@ -107,11 +107,23 @@ public class ChatService {
         }
         String id = "sys_" + event;
         ChatMessage msg = new ChatMessage(id, rideId, "system", ChatMessage.SenderRole.SYSTEM, ChatMessage.Type.SYSTEM,
-                text, event, null, Instant.now(clock));
+                text, event, null, Instant.now(clock), null, null);
         store.createIfAbsent(Collections.messages(rideId), id, msg);
     }
 
     public ChatMessage send(AuthUser user, String rideId, String clientMessageId, String rawText) {
+        return send(user, rideId, clientMessageId, rawText, null, null);
+    }
+
+    /** Envia texto ou, com lat/lng, a localização atual do participante ("estou aqui"). */
+    public ChatMessage send(AuthUser user, String rideId, String clientMessageId, String rawText, Double lat, Double lng) {
+        boolean location = lat != null || lng != null;
+        if (location && (lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180)) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Localização inválida.");
+        }
+        if (location && (rawText == null || rawText.isBlank())) {
+            rawText = "Minha localização";
+        }
         if (clientMessageId == null || !CLIENT_ID.matcher(clientMessageId).matches()) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, "Identificador de mensagem inválido.");
         }
@@ -139,8 +151,9 @@ public class ChatService {
         ChatMessage.SenderRole role = user.uid().equals(chat.driverId())
                 ? ChatMessage.SenderRole.DRIVER : ChatMessage.SenderRole.PASSENGER;
         Instant now = Instant.now(clock);
-        ChatMessage msg = new ChatMessage(id, rideId, user.uid(), role, ChatMessage.Type.TEXT, text, null,
-                clientMessageId, now);
+        ChatMessage msg = new ChatMessage(id, rideId, user.uid(), role,
+                location ? ChatMessage.Type.LOCATION : ChatMessage.Type.TEXT, text, null, clientMessageId, now,
+                location ? lat : null, location ? lng : null);
         if (!store.createIfAbsent(Collections.messages(rideId), id, msg)) {
             return store.get(Collections.messages(rideId), id, ChatMessage.class).orElse(msg);
         }
@@ -148,7 +161,8 @@ public class ChatService {
         String recipient = role == ChatMessage.SenderRole.DRIVER ? chat.passengerId() : chat.driverId();
         notifications.notify(recipient, NotificationType.CHAT_MESSAGE,
                 role == ChatMessage.SenderRole.DRIVER ? "Mensagem do motorista" : "Mensagem do passageiro",
-                text.length() > 80 ? text.substring(0, 80) + "…" : text, Map.of("rideId", rideId));
+                location ? "Compartilhou a localização" : text.length() > 80 ? text.substring(0, 80) + "…" : text,
+                Map.of("rideId", rideId));
         return msg;
     }
 

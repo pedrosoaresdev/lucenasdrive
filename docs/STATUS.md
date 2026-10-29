@@ -7,12 +7,12 @@ Resultados reais da última execução neste repositório:
 
 | Suíte | Comando | Resultado |
 |---|---|---|
-| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **61 testes, 0 falhas** (inclui rotas OSRM e plano B) |
-| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **15 testes, 0 falhas** (edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
+| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **63 testes, 0 falhas** (inclui rotas OSRM, plano B e CSV) |
+| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **17 testes, 0 falhas** (relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
 | Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** (inclui negação de acesso a `presence` e `locationConsents`) |
 | Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **16 testes, 0 falhas** (inclui busca OpenStreetMap e polyline) |
 | Build de produção dos 3 portais | `ng build …` | **sem erros nem avisos** |
-| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **32 etapas aprovadas** (com `E2E_MOCK_OSM=1`; inclui edição de região e cidade/IP no "O olho de Deus") |
+| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **34/34 etapas** (com `E2E_MOCK_OSM=1`; inclui localização no chat, exportação CSV, edição de região e cidade/IP no "O olho de Deus") |
 
 Destaques dos testes de integração:
 - **Aceite concorrente:** 3 motoristas aceitam a mesma corrida simultaneamente → exatamente 1 sucesso (200) e 2 recusas (409).
@@ -76,6 +76,11 @@ alterações de tarifa programadas com data de vigência (versão criada no inst
 de quem ativou, no app, o compartilhamento opcional de localização. Somente ADMIN/OWNER; acessos auditados;
 consentimento revogável a qualquer momento em Perfil. O mapa exige a chave de navegador do Google Maps.
 
+**Etapa 4:** localização no chat da corrida ("estou aqui", com link do mapa); exportação de planilhas (CSV para
+Excel: corridas e lançamentos financeiros, com proteção contra fórmulas e auditoria); painel com indicadores
+isolados; scripts do Windows encerram execuções antigas; portais em pt-BR sem tradução automática; erros com
+código de rastreio.
+
 **Mapas do admin completos:** "O olho de Deus" e "Mapa operacional" com filtro e foco por cidade, busca de
 endereço/local, minha localização, áreas desenhadas, totais por cidade, IP e aparelho; Gestão geográfica com
 edição de regiões (vértices arrastáveis, desfazer, redesenhar) e da cidade (nome, UF, centro).
@@ -100,14 +105,14 @@ saldos, chave Pix, saques, histórico, avaliações e contestação, perfil, sup
 | Google Maps com chave real | Implementado, **não testado com chave** neste ambiente |
 | Verificação de telefone (SMS) | Não implementada no fluxo de cadastro |
 | App Check | Configuração de projeto pendente |
-| Índices compostos em Firestore real | Definidos; o Emulator não os exige — validar após o deploy |
+| Índices compostos em Firestore real | 47 publicados no `lucenasdrive`; painel tolera índice em construção (indicador indisponível sinalizado) |
 | Docker / Compose | Escritos, **não verificados** (sem daemon Docker no ambiente de desenvolvimento) |
 | Push FCM no navegador | Implementado (service worker, permissão, token); **requer chave VAPID e projeto Firebase real** — não testado com entrega real (o emulador não entrega push) |
 | Rate limit com várias instâncias | Em memória por instância (agendadores já usam trava distribuída `schedulerLocks`); usar Redis para limite global |
 | Agregações administrativas em escala | Alguns relatórios iteram documentos (até 10–20 mil); criar contadores/rollups para volume alto |
-| Imagens/localização no chat | Tipo de mensagem extensível; não implementado (fora do MVP) |
+| Imagens no chat | Localização no chat implementada; imagens dependem do Storage (plano Blaze) |
 | Segurança em viagem | Link de acompanhamento e alerta à equipe implementados; **não há central de monitoramento 24 h** (a tela orienta ligar 190/192) |
-| Homologação no Firebase `lucenasdrive` | Script e guia prontos; **não executado** — depende do `firebaseConfig` do app Web e da conta de serviço no computador do proprietário |
+| Homologação no Firebase `lucenasdrive` | **Em uso** pelo proprietário (Auth, Firestore em São Paulo, regras e índices publicados); Storage pendente (plano Blaze) |
 | Multiplicador de demanda automático | Apenas manual (por tarifa/região/janela) |
 | Testes de componentes dos portais | Cobertura concentrada na biblioteca compartilhada + E2E |
 | Revisões externas | Segurança (pentest), jurídica (termos, privacidade, regulação municipal) |

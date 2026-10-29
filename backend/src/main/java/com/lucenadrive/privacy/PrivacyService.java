@@ -388,7 +388,7 @@ public class PrivacyService {
                 boolean mine = uid.equals(m.senderId());
                 n += mine ? 1 : 0;
                 redacted.add(mine ? new ChatMessage(m.id(), m.rideId(), m.senderId(), m.senderRole(), m.type(),
-                        "[mensagem removida]", m.systemEvent(), m.clientMessageId(), m.createdAt()) : m);
+                        "[mensagem removida]", m.systemEvent(), m.clientMessageId(), m.createdAt(), null, null) : m);
             }
             store.set(Collections.RIDE_CHAT_ARCHIVES, a.id(), new com.lucenadrive.chat.ChatService.ChatArchive(a.id(),
                     a.rideId(), a.passengerId(), a.driverId(), redacted, a.archivedAt()));
@@ -403,7 +403,9 @@ public class PrivacyService {
         }
         for (ChatMessage m : store.query(Query.of(Collections.messages(rideId)).eq("senderId", uid).limit(LIMIT),
                 ChatMessage.class)) {
-            store.update(Collections.messages(rideId), m.id(), Map.of("text", "[mensagem removida]"));
+            store.update(Collections.messages(rideId), m.id(), m.type() == ChatMessage.Type.LOCATION
+                    ? Map.of("text", "[mensagem removida]", "type", "TEXT", "lat", 0.0, "lng", 0.0)
+                    : Map.of("text", "[mensagem removida]"));
             n++;
         }
         return n;

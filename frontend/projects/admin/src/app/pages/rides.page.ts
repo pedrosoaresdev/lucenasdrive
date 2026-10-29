@@ -5,6 +5,8 @@ import {
   ApiError, ApiService, DateTimePipe, KmPipe, MinutesPipe, MoneyPipe, Page, PaymentLabelPipe, RideStatusPipe, RideView,
   StateViewComponent, rideStatusTone,
 } from '@lucena/shared';
+import { adminActions } from '../core/admin-actions';
+import { period, saveBlob } from '../core/download';
 
 /** Gestão de corridas: filtros por período, cidade, status, motorista e passageiro. */
 @Component({
@@ -24,6 +26,9 @@ import {
       <input class="input" type="date" [(ngModel)]="f.from" name="from" aria-label="De" />
       <input class="input" type="date" [(ngModel)]="f.to" name="to" aria-label="Até" />
       <button class="btn primary" type="submit">Filtrar</button>
+      <button class="btn ghost" type="button" (click)="exportCsv()" [disabled]="exporting()"
+              title="Planilha (CSV) do período e da cidade filtrados; padrão: últimos 30 dias">
+        {{ exporting() ? 'Gerando…' : 'Exportar planilha' }}</button>
     </form>
     @if (error()) { <ld-state state="error" [message]="error()" (retry)="reload()" /> }
     <div class="table-wrap"><table class="table">
@@ -54,6 +59,18 @@ export default class RidesPage implements OnInit {
   readonly passengerId = input<string>();
   protected readonly statuses = ['SEARCHING_DRIVER', 'ACCEPTED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
   protected f = { status: '', cityId: '', driverId: '', passengerId: '', from: '', to: '' };
+  protected readonly exporting = signal(false);
+  private readonly actions = adminActions();
+
+  /** Relatório de corridas para Excel (sem dados pessoais sensíveis; exportação auditada). */
+  protected async exportCsv(): Promise<void> {
+    const p = period(this.f.from, this.f.to);
+    this.exporting.set(true);
+    const blob = await this.actions.exec(() => this.api.download('/admin/reports/rides.csv',
+      { from: p.from, to: p.to, ...(this.f.cityId ? { cityId: this.f.cityId } : {}) }));
+    this.exporting.set(false);
+    if (blob) saveBlob(blob, `corridas_${p.from}_a_${p.to}.csv`);
+  }
   protected readonly items = signal<RideView[]>([]);
   protected readonly cursor = signal<string | null>(null);
   protected readonly loading = signal(false);

@@ -93,6 +93,18 @@ class RideLifecycleIT extends IntegrationTestBase {
         assertThat(texts.stream().filter("Chego em 2 minutos"::equals).count()).isEqualTo(1);
         assertThat(history.get("items").get(0).get("senderRole").asString()).isEqualTo("DRIVER");
 
+        // Localização no chat ("estou aqui")
+        JsonNode loc = call(HttpMethod.POST, "/api/v1/rides/" + rideId + "/chat/messages", pax,
+                Map.of("clientMessageId", UUID.randomUUID().toString(), "location", Map.of("lat", LAT, "lng", LNG)), 201);
+        assertThat(loc.get("type").asString()).isEqualTo("LOCATION");
+        assertThat(loc.get("lat").asDouble()).isEqualTo(LAT);
+        assertThat(loc.get("text").asString()).isEqualTo("Minha localização");
+        call(HttpMethod.POST, "/api/v1/rides/" + rideId + "/chat/messages", pax,
+                Map.of("clientMessageId", UUID.randomUUID().toString(), "location", Map.of("lat", 123, "lng", LNG)), 400);
+        call(HttpMethod.POST, "/api/v1/rides/" + rideId + "/chat/messages", pax,
+                Map.of("clientMessageId", UUID.randomUUID().toString(), "text", " "), 400);
+        clock.advance(java.time.Duration.ofSeconds(1));
+
         // Isolamento do chat: terceiro não lê nem envia
         Actor intruder = passenger();
         call(HttpMethod.GET, "/api/v1/rides/" + rideId + "/chat/messages", intruder, null, 403);

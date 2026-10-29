@@ -63,7 +63,7 @@ traceId, fieldErrors[], details }`; o frontend traduz pelo `code`.
 ## Chat (participantes da corrida)
 | Rota | Descrição |
 |---|---|
-| POST `/api/v1/rides/{id}/chat/messages` | Envia (`clientMessageId` para deduplicar) |
+| POST `/api/v1/rides/{id}/chat/messages` | Envia texto ou `location: {lat, lng}` (`clientMessageId` para deduplicar) |
 | GET `/api/v1/rides/{id}/chat/messages?before=` | Histórico paginado |
 | POST `/api/v1/rides/{id}/chat/read` | Confirmação de leitura |
 
@@ -75,6 +75,9 @@ e tamanho (≤ 10 MB). A equipe baixa por `GET /api/v1/admin/support/tickets/{id
 Tarifas: `PUT /api/v1/admin/cities/{cityId}/fares/{categoria}` aceita `effectiveFrom` (10 min a 180 dias à frente) para
 programar a alteração; `POST …/cancel-scheduled` cancela. Conversas arquivadas em redespachos:
 `GET /api/v1/admin/rides/{id}/chat-archives?reason=` (auditado).
+
+Relatórios (CSV para Excel, auditados): `GET /api/v1/admin/reports/rides.csv?from=&to=&cityId=` (SUPPORT/FINANCE/ADMIN/OWNER) e
+`GET /api/v1/admin/reports/ledger.csv?from=&to=` (FINANCE/ADMIN/OWNER). Datas AAAA-MM-DD; padrão últimos 30 dias; máx. 366 dias.
 
 "O olho de Deus" (ADMIN/OWNER): `GET /api/v1/admin/god-eye/positions?kind=` — posições dos últimos 5 min de quem
 consentiu (nome, tipo, lat/lng, precisão, horário); auditado.

@@ -4,6 +4,7 @@ import {
   ApiService, DateTimePipe, IntegrationPendingComponent, LedgerEntry, MoneyPipe, PayoutRequest, newIdempotencyKey,
 } from '@lucena/shared';
 import { adminActions } from '../core/admin-actions';
+import { period, saveBlob } from '../core/download';
 
 interface Fin { grossRideValueCents: number; cashRideValueCents: number; digitalPaymentsConfirmedCents: number;
   commissionCalculatedCents: number; commissionReceivedCents: number; awaitingSettlementCents: number; couponSubsidyCents: number;
@@ -25,6 +26,9 @@ interface Issue { kind: string; referenceId: string; description: string; since:
       <label class="small">De <input class="input" type="date" [(ngModel)]="from" /></label>
       <label class="small">Até <input class="input" type="date" [(ngModel)]="to" /></label>
       <button class="btn primary" (click)="load()">Aplicar</button>
+      <button class="btn ghost" (click)="exportLedger()" [disabled]="exporting()"
+              title="Todos os lançamentos do período em planilha (CSV); padrão: últimos 30 dias">
+        {{ exporting() ? 'Gerando…' : 'Exportar lançamentos' }}</button>
     </div>
     @if (!f()?.providerConfigured) {
       <ld-integration-pending name="Provedor de pagamentos" detail="Pix, cartão, liquidação, saldo disponível e saques dependem do contrato com um provedor (ver docs/INTEGRATIONS.md). Os valores abaixo são registros internos." />
@@ -114,6 +118,15 @@ export default class FinancePage implements OnInit {
   protected readonly statement = signal<LedgerEntry[]>([]);
   protected readonly pix = signal<{ keyType: string; keyMasked: string } | null>(null);
   protected from = '';
+  protected readonly exporting = signal(false);
+
+  protected async exportLedger(): Promise<void> {
+    const p = period(this.from, this.to);
+    this.exporting.set(true);
+    const blob = await this.a.exec(() => this.api.download('/admin/reports/ledger.csv', { from: p.from, to: p.to }));
+    this.exporting.set(false);
+    if (blob) saveBlob(blob, `lancamentos_${p.from}_a_${p.to}.csv`);
+  }
   protected to = '';
   protected amount: number | null = null;
   protected pixForm = { keyType: 'CNPJ', key: '' };

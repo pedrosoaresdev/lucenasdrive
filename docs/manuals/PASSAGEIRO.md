@@ -33,3 +33,6 @@ Ao entrar, o app pode perguntar se você quer compartilhar sua localização com
 enquanto o app estiver aberto a equipe vê no mapa seu nome, que você é passageiro e onde você está. É opcional:
 toque em "Agora não" para recusar, ou ligue/desligue depois em **Perfil › Compartilhar minha localização com a
 equipe**. Ao desligar, sua posição é apagada na hora.
+
+## Enviar sua localização no chat
+No chat da corrida, toque em 📍 para mandar ao motorista onde você está. Ele recebe um link "Abrir no mapa".

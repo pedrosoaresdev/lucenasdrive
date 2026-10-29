@@ -29,13 +29,19 @@ public class ChatController {
     }
 
     public record SendMessageRequest(@NotBlank @Size(max = 64) String clientMessageId,
-                                     @NotBlank @Size(max = 2000) String text) {
+                                     @Size(max = 2000) String text, @Valid LocationBody location) {
+    }
+
+    public record LocationBody(double lat, double lng) {
     }
 
     @PostMapping("/messages")
     @ResponseStatus(HttpStatus.CREATED)
     public ChatMessage send(@AuthenticationPrincipal AuthUser user, @PathVariable String rideId,
                             @Valid @RequestBody SendMessageRequest body) {
+        if (body.location() != null) {
+            return chat.send(user, rideId, body.clientMessageId(), body.text(), body.location().lat(), body.location().lng());
+        }
         return chat.send(user, rideId, body.clientMessageId(), body.text());
     }
 

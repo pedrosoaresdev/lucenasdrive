@@ -56,7 +56,12 @@ const MAX_LEN = 500;
             <div class="sys"><span>{{ m.text }}</span> <time>{{ time(m) }}</time></div>
           } @else {
             <div class="bubble" [class.mine]="m.senderId === myUid()" [class.failed]="m.failed">
-              <p>{{ m.text }}</p>
+              @if (m.type === 'LOCATION' && m.lat != null && m.lng != null) {
+                <p>📍 {{ m.text }}</p>
+                <a class="loc" [href]="mapLink(m)" target="_blank" rel="noopener">Abrir no mapa ↗</a>
+              } @else {
+                <p>{{ m.text }}</p>
+              }
               <span class="meta">
                 <time>{{ time(m) }}</time>
                 @if (m.senderId === myUid()) {
@@ -81,6 +86,8 @@ const MAX_LEN = 500;
           <label class="sr-only" for="chat-input">Mensagem</label>
           <textarea id="chat-input" class="input" rows="1" [(ngModel)]="draft" name="draft" [maxlength]="maxLen"
                     placeholder="Escreva uma mensagem" (keydown)="onKey($event)" enterkeyhint="send"></textarea>
+          <button class="btn ghost icon-btn" type="button" (click)="sendLocation()" [disabled]="locating()"
+                  aria-label="Enviar minha localização" title="Enviar minha localização">📍</button>
           <button class="btn primary icon-btn" type="submit" [disabled]="!draft.trim()" aria-label="Enviar">➤</button>
         </form>
         @if (draft.length > maxLen - 60) { <p class="small muted count">{{ draft.length }}/{{ maxLen }}</p> }
@@ -103,6 +110,7 @@ const MAX_LEN = 500;
       border-radius: 16px 16px 4px 16px; }
     .bubble.failed { opacity: .7; outline: 1px dashed var(--ld-danger); }
     .bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .bubble .loc { display: inline-block; margin-top: 4px; font-weight: 600; font-size: .85rem; color: inherit; text-decoration: underline; }
     .meta { display: flex; gap: 6px; justify-content: flex-end; font-size: .72rem; opacity: .75; margin-top: 2px; }
     .read { color: var(--ld-accent); }
     .bubble.mine .read { color: #b8f5dc; }
@@ -238,6 +246,36 @@ export class ChatPanelComponent implements OnInit {
     void this.deliver(pending);
   }
 
+  protected readonly locating = signal(false);
+
+  /** Link universal (abre o app de mapas do aparelho ou o OpenStreetMap). */
+  protected mapLink(m: ChatMessage): string {
+    return `https://www.openstreetmap.org/?mlat=${m.lat}&mlon=${m.lng}#map=18/${m.lat}/${m.lng}`;
+  }
+
+  /** "Estou aqui": compartilha a posição atual na conversa da corrida (só com o outro participante). */
+  protected sendLocation(): void {
+    if (!('geolocation' in navigator)) {
+      this.sendError.set('Seu dispositivo não oferece localização.');
+      return;
+    }
+    this.locating.set(true);
+    navigator.geolocation.getCurrentPosition((pos) => {
+      this.locating.set(false);
+      const clientMessageId = crypto.randomUUID();
+      const pending: ChatMessage = { id: `${this.myUid()}_${clientMessageId}`, rideId: this.rideId(), senderId: this.myUid(),
+        senderRole: 'PASSENGER', type: 'LOCATION', text: 'Minha localização', clientMessageId, createdAt: Date.now(),
+        pending: true, lat: pos.coords.latitude, lng: pos.coords.longitude };
+      this.local.update((l) => [...l, pending]);
+      this.nearBottom = true;
+      void this.deliver(pending);
+    }, (err) => {
+      this.locating.set(false);
+      this.sendError.set(err.code === err.PERMISSION_DENIED
+        ? 'Permita a localização no navegador para enviar onde você está.' : 'Não foi possível obter sua localização.');
+    }, { enableHighAccuracy: true, timeout: 10_000, maximumAge: 10_000 });
+  }
+
   protected retry(m: ChatMessage): void {
     this.local.update((l) => l.map((x) => (x.id === m.id ? { ...x, failed: false, pending: true } : x)));
     void this.deliver(m);
@@ -246,7 +284,9 @@ export class ChatPanelComponent implements OnInit {
   private async deliver(m: ChatMessage): Promise<void> {
     this.sendError.set('');
     try {
-      await this.api.post(`/rides/${this.rideId()}/chat/messages`, { clientMessageId: m.clientMessageId, text: m.text });
+      await this.api.post(`/rides/${this.rideId()}/chat/messages`, m.type === 'LOCATION'
+        ? { clientMessageId: m.clientMessageId, text: m.text, location: { lat: m.lat, lng: m.lng } }
+        : { clientMessageId: m.clientMessageId, text: m.text });
     } catch (err) {
       const e = ApiError.from(err);
       this.local.update((l) => l.map((x) => (x.id === m.id ? { ...x, pending: false, failed: true } : x)));
@@ -287,7 +327,7 @@ export class ChatPanelComponent implements OnInit {
   /** Confirma leitura (com atraso, apenas se há mensagem da outra pessoa e o chat está visível). */
   private scheduleRead(): void {
     if (!this.writable() && this.chatDoc()?.status !== 'READ_ONLY') return;
-    const fromOther = this.live().some((m) => m.senderId !== this.myUid() && m.type === 'TEXT');
+    const fromOther = this.live().some((m) => m.senderId !== this.myUid() && (m.type === 'TEXT' || m.type === 'LOCATION'));
     if (!fromOther || document.hidden || !this.nearBottom) return;
     clearTimeout(this.readTimer);
     this.readTimer = setTimeout(() => void this.api.post(`/rides/${this.rideId()}/chat/read`).catch(() => undefined), 800);
