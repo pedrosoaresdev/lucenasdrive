@@ -25,6 +25,11 @@ import { LogoComponent } from './logo.component';
             obrigações legais e garantir a segurança da plataforma (LGPD, art. 7º, II, V e IX).</p>
           <p>Mensagens do chat ficam visíveis aos participantes por 7 dias após a corrida e são retidas por até 180 dias
             para suporte e apuração de ocorrências; depois, são excluídas. O CPF é armazenado criptografado.</p>
+          <p><strong>Localização para a equipe (opcional).</strong> Se você ativar "Compartilhar minha localização com a
+            equipe", enquanto o app estiver aberto a equipe administrativa do Lucena Drive poderá ver no mapa seu nome,
+            o tipo de conta (passageiro ou motorista) e sua posição, para suporte e segurança (LGPD, art. 7º, I —
+            consentimento). Guardamos apenas a última posição, por até 30 minutos. Você pode desligar a qualquer
+            momento em Perfil; ao desligar, a posição é apagada na hora. Os acessos da equipe são registrados.</p>
           <p>Você pode solicitar acesso, correção, portabilidade e exclusão em Perfil › Privacidade.</p>
         }
       </article>

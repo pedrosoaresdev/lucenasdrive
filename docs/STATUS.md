@@ -8,11 +8,11 @@ Resultados reais da última execução neste repositório:
 | Suíte | Comando | Resultado |
 |---|---|---|
 | Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **57 testes, 0 falhas** |
-| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **13 testes, 0 falhas** (fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
-| Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** |
+| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **14 testes, 0 falhas** ("O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
+| Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** (inclui negação de acesso a `presence` e `locationConsents`) |
 | Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **13 testes, 0 falhas** |
 | Build de produção dos 3 portais | `ng build …` | **sem erros nem avisos** |
-| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **28/28 etapas** (o cadastro do autenticador foi validado na execução anterior com o mesmo emulador) |
+| Aceitação E2E em navegador real (Chromium) contra Emulator + backend + portais | `node e2e/acceptance.cjs` | **30/30 etapas** |
 
 Destaques dos testes de integração:
 - **Aceite concorrente:** 3 motoristas aceitam a mesma corrida simultaneamente → exatamente 1 sucesso (200) e 2 recusas (409).
@@ -71,6 +71,10 @@ anexos no suporte (upload pelo usuário, download auditado pela equipe); push we
 automático quando o motorista desiste antes do embarque (até 2 vezes, conversa anterior arquivada e invisível ao novo
 motorista); link público temporário de acompanhamento e alerta de segurança (chamado URGENTE com a última posição);
 alterações de tarifa programadas com data de vigência (versão criada no instante certo, cancelável).
+
+**Painel "O olho de Deus" (admin):** mapa e lista, atualizados a cada 15 s, com nome e tipo (motorista/passageiro)
+de quem ativou, no app, o compartilhamento opcional de localização. Somente ADMIN/OWNER; acessos auditados;
+consentimento revogável a qualquer momento em Perfil. O mapa exige a chave de navegador do Google Maps.
 
 **Frontend:** design system próprio (tema claro/escuro, acessibilidade, estados de carregamento/vazio/erro/indisponível);
 PWA nos 3 portais; passageiro (landing, cadastro, login, verificação de e-mail, recuperação/redefinição de senha,

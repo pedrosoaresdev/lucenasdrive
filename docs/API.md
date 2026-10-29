@@ -26,6 +26,8 @@ traceId, fieldErrors[], details }`; o frontend traduz pelo `code`.
 | GET/POST `/api/v1/me/privacy-requests` | Solicitações LGPD |
 | GET `/api/v1/me/data-export` | Cópia dos próprios dados em JSON (login recente; 3/hora; auditado) |
 | POST `/api/v1/notifications/{id}/read` | Marca notificação como lida |
+| GET/PUT `/api/v1/me/location-sharing` | Consentimento opcional de localização para a equipe |
+| POST `/api/v1/me/presence` | Envia a posição atual (`app`: PASSENGER/DRIVER); exige consentimento; 1 a cada 10 s |
 
 ## Passageiro (PASSENGER)
 | Rota | Descrição |
@@ -73,6 +75,9 @@ e tamanho (≤ 10 MB). A equipe baixa por `GET /api/v1/admin/support/tickets/{id
 Tarifas: `PUT /api/v1/admin/cities/{cityId}/fares/{categoria}` aceita `effectiveFrom` (10 min a 180 dias à frente) para
 programar a alteração; `POST …/cancel-scheduled` cancela. Conversas arquivadas em redespachos:
 `GET /api/v1/admin/rides/{id}/chat-archives?reason=` (auditado).
+
+"O olho de Deus" (ADMIN/OWNER): `GET /api/v1/admin/god-eye/positions?kind=` — posições dos últimos 5 min de quem
+consentiu (nome, tipo, lat/lng, precisão, horário); auditado.
 
 Anonimização LGPD (ADMIN/OWNER + MFA recente): `POST /api/v1/admin/privacy-requests/{id}/anonymize`.
 

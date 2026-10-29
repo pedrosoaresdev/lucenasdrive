@@ -6,6 +6,9 @@
 2. **Dados coletados.** Cadastro (nome, CPF, data de nascimento, telefone, e-mail, foto); motoristas (CNH,
    documentos, veículo, antecedentes); localização durante o uso (motorista online e corridas); mensagens do
    chat da corrida; avaliações; dados de pagamento e repasse; registros de acesso e segurança.
+   **Localização para a equipe (opcional, por consentimento):** quem ativa o compartilhamento tem nome, tipo de conta
+   e última posição (com o app aberto) visíveis à administração no painel "O olho de Deus"; a posição é guardada por
+   até 30 minutos, apagada ao desligar, e cada acesso da equipe é auditado.
 3. **Finalidades e bases legais.** Execução do contrato (corridas, pagamentos), cumprimento de obrigação legal
    (registros, fiscal), legítimo interesse (segurança, prevenção à fraude) e consentimento quando aplicável
    (promoções, notificações de marketing). [Validar com o jurídico.]

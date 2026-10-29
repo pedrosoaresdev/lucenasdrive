@@ -8,9 +8,11 @@ export interface MapMarker {
   id: string;
   lat: number;
   lng: number;
-  kind: 'origin' | 'destination' | 'car' | 'me' | 'point';
+  kind: 'origin' | 'destination' | 'car' | 'me' | 'point' | 'person';
   title?: string;
   heading?: number;
+  /** Texto exibido em um balão ao clicar no marcador. */
+  info?: string;
 }
 
 export interface MapPolygon {
@@ -20,7 +22,7 @@ export interface MapPolygon {
   label?: string;
 }
 
-const COLORS = { origin: '#10b981', destination: '#4338ca', me: '#0369a1', point: '#f59e0b', car: '#0d1321' };
+const COLORS = { origin: '#10b981', destination: '#4338ca', me: '#0369a1', point: '#f59e0b', car: '#0d1321', person: '#e11d48' };
 
 /**
  * Mapa Google Maps reutilizável (marcadores, rota codificada, polígonos e cliques).
@@ -78,6 +80,7 @@ export class MapComponent implements OnDestroy {
   private gLine?: google.maps.Polyline;
   private gPolys: google.maps.Polygon[] = [];
   private gDraft?: google.maps.Polyline;
+  private info?: google.maps.InfoWindow;
   private readonly ready = signal(false);
   private fitted = false;
 
@@ -112,7 +115,8 @@ export class MapComponent implements OnDestroy {
   }
 
   protected label(m: MapMarker): string {
-    return m.title ?? { origin: 'Embarque', destination: 'Destino', car: 'Motorista', me: 'Você', point: 'Ponto' }[m.kind];
+    return m.title ?? { origin: 'Embarque', destination: 'Destino', car: 'Motorista', me: 'Você', point: 'Ponto',
+      person: 'Passageiro' }[m.kind];
   }
 
   private icon(m: MapMarker): google.maps.Symbol {
@@ -135,8 +139,18 @@ export class MapComponent implements OnDestroy {
         existing.setPosition(m);
         existing.setIcon(this.icon(m));
       } else {
-        this.gMarkers.set(m.id, new google.maps.Marker({ map: this.map, position: m, icon: this.icon(m),
-          title: this.label(m) }));
+        const mk = new google.maps.Marker({ map: this.map, position: m, icon: this.icon(m), title: this.label(m) });
+        mk.addListener('click', () => {
+          const text = this.markers().find((x) => x.id === m.id)?.info;
+          if (!text) return;
+          this.info ??= new google.maps.InfoWindow();
+          const el = document.createElement('div');
+          el.style.cssText = 'white-space:pre-line;font:600 13px system-ui;color:#0d1321';
+          el.textContent = text; // texto puro: nomes de usuários nunca viram HTML
+          this.info.setContent(el);
+          this.info.open({ map: this.map, anchor: mk });
+        });
+        this.gMarkers.set(m.id, mk);
       }
     }
   }

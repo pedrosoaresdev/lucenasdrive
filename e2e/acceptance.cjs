@@ -99,6 +99,11 @@ async function toastText(page) {
   for (const [n, p] of [['admin', adm], ['motorista', drv], ['passageiro', pax]]) {
     p.on('pageerror', (e) => console.log(`[${n}] erro de página:`, e.message));
   }
+  // Convite opcional de localização ("O olho de Deus"): quando aparecer, o usuário de teste permite.
+  for (const p of [drv, pax]) {
+    await p.addLocatorHandler(p.locator('ld-location-consent').getByRole('button', { name: 'Permitir' }),
+      async (btn) => { await btn.click(); });
+  }
   let lastStep = 0;
   let secret = null;
   /** Se o painel pedir confirmação de MFA recente (step-up), informa um código novo. */
@@ -378,6 +383,17 @@ async function toastText(page) {
     await adm.locator('.kpi', { hasText: 'Concluídas' }).waitFor();
     await adm.screenshot({ path: path.join(OUT, '10-admin-dashboard.png'), fullPage: true });
     step('Dashboard reflete os dados reais do banco', true);
+
+    // ------------------------------------------------ O olho de Deus (localização opcional)
+    await pax.goto(`${PAX}/perfil`);
+    await pax.getByRole('button', { name: 'Desligar' }).waitFor({ timeout: 15000 }); // compartilhamento ativo
+    await adm.goto(`${ADM}/olho-de-deus`);
+    const eye = adm.locator('.list');
+    await eye.getByText('Passageira Teste Lima').waitFor({ timeout: 30000 });
+    await eye.getByText('Motorista Teste Silva').waitFor({ timeout: 30000 });
+    await adm.screenshot({ path: path.join(OUT, '10b-admin-olho-de-deus.png'), fullPage: true });
+    step('Admin vê no "O olho de Deus" passageiro e motorista que ativaram a localização', true,
+      (await eye.innerText()).includes('Motorista') ? 'nome + tipo exibidos' : '');
 
     // ------------------------------------------------ Nota do passageiro no perfil
     await pax.goto(`${PAX}/perfil`);

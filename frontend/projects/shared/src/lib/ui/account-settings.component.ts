@@ -8,6 +8,8 @@ import { DateTimePipe } from '../core/format';
 import { NotificationPreferences } from '../core/models';
 import { ToastService } from '../core/toast.service';
 import { PushService } from '../core/push.service';
+import { LUCENA_CONFIG } from '../core/config';
+import { PresenceService } from '../core/presence.service';
 import { strongPasswordValidator } from '../core/validators';
 import { FormControl } from '@angular/forms';
 
@@ -27,6 +29,15 @@ interface PrivacyRequest { id: string; type: string; status: string; createdAt: 
             <span>{{ opt.label }}</span></label>
         }
         <p class="small muted">Alertas de segurança e eventos da corrida em andamento são sempre enviados no app.</p>
+      }
+      @if (showLocation) {
+        <div class="row between push">
+          <span class="small"><strong>Compartilhar minha localização com a equipe</strong><br />
+            <span class="muted">Opcional. Com o app aberto, a equipe vê no mapa seu nome, o tipo de conta e onde você está.
+              Desligar apaga a posição na hora.</span></span>
+          @if (presence.enabled()) { <button class="btn ghost sm" (click)="presence.disable()">Desligar</button> }
+          @else { <button class="btn ghost sm" (click)="presence.enable()">Ligar</button> }
+        </div>
       }
       <div class="row between push">
         <span class="small"><strong>Push neste navegador</strong><br />
@@ -93,6 +104,9 @@ export class AccountSettingsComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   protected readonly push = inject(PushService);
+  protected readonly presence = inject(PresenceService);
+  /** Só nos apps de passageiro e motorista (o portal admin não envia localização). */
+  protected readonly showLocation = inject(LUCENA_CONFIG).portal !== 'admin';
   protected readonly pushText: Record<string, string> = {
     'not-configured': 'Requer chave VAPID do Firebase Cloud Messaging (ver docs/INTEGRATIONS.md). Os avisos continuam no app.',
     unsupported: 'Este navegador não oferece suporte a notificações push.',

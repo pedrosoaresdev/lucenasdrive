@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AuthService, AvatarComponent, LogoComponent, NotificationBellComponent } from '@lucena/shared';
+import { AuthService, LocationConsentComponent, AvatarComponent, LogoComponent, NotificationBellComponent } from '@lucena/shared';
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, NotificationBellComponent, AvatarComponent],
+  imports: [LocationConsentComponent, RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, NotificationBellComponent, AvatarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="topbar">
@@ -19,6 +19,7 @@ import { AuthService, AvatarComponent, LogoComponent, NotificationBellComponent 
       }
     </header>
     <main><router-outlet /></main>
+    <ld-location-consent kind="DRIVER" />
     <nav class="bottom" aria-label="Navegação">
       @for (l of links.slice(0, 4); track l.to) { <a [routerLink]="l.to" routerLinkActive="active">{{ l.label }}</a> }
     </nav>

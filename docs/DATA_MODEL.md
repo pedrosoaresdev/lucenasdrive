@@ -153,6 +153,8 @@ Lançamentos nunca são apagados; correções geram `ADJUSTMENT`/`REVERSAL`. Sem
 | `platformSettings` | reservado para parâmetros globais futuros | não |
 | `rideShares/{sha256(token)}` | rideId, passengerId, revoked, createdAt, expiresAt | não (consulta pública via API) |
 | `rideChatArchives/{rideId}_{ms}` | conversa com motorista que desistiu (redespacho); apagada após a retenção do chat | não |
+| `locationConsents/{uid}` | enabled, version, changedAt, history[] (prova do consentimento de localização) | não |
+| `presence/{uid}` | name, kind (PASSENGER/DRIVER), lat, lng, accuracyM, updatedAt — só de quem consentiu; apagada após 30 min | não |
 | `schedulerLocks/{tarefa}` | owner (instância), until — lease das tarefas agendadas (despacho 30 s; cupons, chat e documentos 10 min) | não |
 
 ## Ajustes em relação à lista solicitada (justificativas)

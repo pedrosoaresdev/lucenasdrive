@@ -44,6 +44,8 @@ public final class Collections {
     public static final String SCHEDULER_LOCKS = "schedulerLocks";
     public static final String RIDE_CHAT_ARCHIVES = "rideChatArchives";
     public static final String RIDE_SHARES = "rideShares";
+    public static final String PRESENCE = "presence";
+    public static final String LOCATION_CONSENTS = "locationConsents";
 
     private Collections() {
     }

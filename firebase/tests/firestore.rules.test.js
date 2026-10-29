@@ -117,5 +117,10 @@ describe('notificações e coleções internas', () => {
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'rideShares/s1')));
     await assertFails(getDocs(collection(as('drv1'), 'rideChatArchives')));
     await assertFails(setDoc(doc(as('pax1'), 'schedulerLocks/dispatch'), { owner: 'x' }));
+    // localização compartilhada ("O olho de Deus"): só o backend lê e grava
+    await assertFails(getDoc(doc(as('pax1'), 'presence/pax1')));
+    await assertFails(getDocs(collection(as('drv1'), 'presence')));
+    await assertFails(setDoc(doc(as('pax1'), 'presence/pax1'), { lat: 0, lng: 0 }));
+    await assertFails(getDoc(doc(as('pax1'), 'locationConsents/pax1')));
   });
 });

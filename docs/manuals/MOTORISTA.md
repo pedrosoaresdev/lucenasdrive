@@ -30,3 +30,9 @@ Situações possíveis: cadastro incompleto, pendente de análise, aprovado, rec
 ## Avaliações
 Veja média, distribuição de estrelas e comentários. Avaliações de até 3 estrelas podem ser contestadas — a
 contestação abre um chamado de revisão; a nota só muda por decisão justificada da equipe.
+
+## Compartilhar localização com a equipe (opcional)
+Ao entrar, o app pode perguntar se você quer compartilhar sua localização com a equipe Lucena Drive. Se permitir,
+enquanto o app estiver aberto a equipe vê no mapa seu nome, que você é motorista e onde você está. É opcional:
+toque em "Agora não" para recusar, ou ligue/desligue depois em **Perfil › Compartilhar minha localização com a
+equipe**. Ao desligar, sua posição é apagada na hora.

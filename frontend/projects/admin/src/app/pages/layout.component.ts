@@ -8,6 +8,7 @@ interface NavItem { to: string; label: string; roles: Role[]; group: string; }
 const NAV: NavItem[] = [
   { to: '/painel', label: 'Dashboard', roles: ['SUPPORT', 'FINANCE', 'ADMIN', 'OWNER'], group: 'Visão geral' },
   { to: '/mapa', label: 'Mapa operacional', roles: ['SUPPORT', 'ADMIN', 'OWNER'], group: 'Visão geral' },
+  { to: '/olho-de-deus', label: 'O olho de Deus', roles: ['ADMIN', 'OWNER'], group: 'Visão geral' },
   { to: '/corridas', label: 'Corridas', roles: ['SUPPORT', 'FINANCE', 'ADMIN', 'OWNER'], group: 'Operação' },
   { to: '/passageiros', label: 'Passageiros', roles: ['SUPPORT', 'ADMIN', 'OWNER'], group: 'Operação' },
   { to: '/motoristas', label: 'Motoristas', roles: ['SUPPORT', 'ADMIN', 'OWNER'], group: 'Operação' },

@@ -27,3 +27,9 @@
 ## Segurança
 Confira a placa antes de embarcar, use o chat da corrida, e em emergência ligue **190** (Polícia) ou
 **192** (SAMU). O suporte do Lucena Drive não substitui serviços de emergência.
+
+## Compartilhar localização com a equipe (opcional)
+Ao entrar, o app pode perguntar se você quer compartilhar sua localização com a equipe Lucena Drive. Se permitir,
+enquanto o app estiver aberto a equipe vê no mapa seu nome, que você é passageiro e onde você está. É opcional:
+toque em "Agora não" para recusar, ou ligue/desligue depois em **Perfil › Compartilhar minha localização com a
+equipe**. Ao desligar, sua posição é apagada na hora.

@@ -44,3 +44,10 @@ Ninguém altera os próprios papéis. O papel OWNER não é concedido pelo paine
 - **Suporte:** fila por status/categoria, prioridade, assumir chamado, responder, escalonar. Ocorrências de
   segurança entram com prioridade alta.
 - **Auditoria:** todas as operações privilegiadas e eventos de segurança (MFA, novos dispositivos, sessões).
+
+## O olho de Deus
+Menu **Visão geral › O olho de Deus** (somente Administrador e Proprietário). Mostra no mapa e na lista os passageiros
+e motoristas que **ativaram** "Compartilhar minha localização com a equipe" no app e estão com o app aberto nos
+últimos 5 minutos: nome, tipo (motorista ou passageiro), posição, precisão e horário. Filtre por tipo ou busque pelo
+nome; clique no marcador para ver nome e tipo. Quem não ativou não aparece. Cada abertura do painel é registrada na
+auditoria. Use apenas para suporte e segurança, conforme a política interna e a LGPD.

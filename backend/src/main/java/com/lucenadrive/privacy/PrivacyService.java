@@ -194,6 +194,10 @@ public class PrivacyService {
         out.put("supportTickets", tickets);
         out.put("notifications", store.query(Query.of(Collections.NOTIFICATIONS).eq("userId", uid)
                 .orderBy("createdAt", Query.Direction.DESC).limit(200), Notification.class));
+        out.put("locationSharing", store.get(Collections.LOCATION_CONSENTS, uid,
+                com.lucenadrive.presence.LocationConsent.class).orElse(null));
+        out.put("lastSharedLocation", store.get(Collections.PRESENCE, uid,
+                com.lucenadrive.presence.Presence.class).orElse(null));
         out.put("privacyRequests", store.query(Query.of(Collections.PRIVACY_REQUESTS).eq("userId", uid).limit(100),
                 PrivacyRequest.class));
 
@@ -262,6 +266,7 @@ public class PrivacyService {
         store.delete(Collections.DRIVER_PRIVATE, uid);
         store.delete(Collections.PIX_KEYS, uid);
         store.delete(Collections.DRIVER_LOCATIONS, uid);
+        store.delete(Collections.PRESENCE, uid);
         store.set(Collections.USERS, uid, new User(uid, null, REMOVED, null, null, user.roles(), UserStatus.DELETED,
                 null, new NotificationPreferences(false, false, false, false, false, true), user.termsVersion(),
                 user.privacyVersion(), user.consentAt(), "Conta anonimizada a pedido do titular", user.createdAt(), now));

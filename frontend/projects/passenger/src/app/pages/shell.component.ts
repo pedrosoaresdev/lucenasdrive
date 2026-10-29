@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AuthService, AvatarComponent, LogoComponent, NotificationBellComponent } from '@lucena/shared';
+import { AuthService, LocationConsentComponent, AvatarComponent, LogoComponent, NotificationBellComponent } from '@lucena/shared';
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, NotificationBellComponent, AvatarComponent],
+  imports: [LocationConsentComponent, RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, NotificationBellComponent, AvatarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="topbar">
@@ -21,6 +21,7 @@ import { AuthService, AvatarComponent, LogoComponent, NotificationBellComponent 
       }
     </header>
     <main><router-outlet /></main>
+    <ld-location-consent kind="PASSENGER" />
     <nav class="bottom" aria-label="Navegação">
       <a routerLink="/inicio" routerLinkActive="active">Viajar</a>
       <a routerLink="/historico" routerLinkActive="active">Corridas</a>

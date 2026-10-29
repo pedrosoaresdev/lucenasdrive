@@ -26,6 +26,7 @@ export const routes: Routes = [
       { path: 'motoristas/:driverId', loadComponent: () => import('./pages/driver-detail.page'), title: 'Motorista · Admin' },
       { path: 'corridas', loadComponent: () => import('./pages/rides.page'), title: 'Corridas · Admin' },
       { path: 'corridas/:rideId', loadComponent: () => import('./pages/ride-detail.page'), title: 'Corrida · Admin' },
+      { path: 'olho-de-deus', loadComponent: () => import('./pages/god-eye.page'), title: 'O olho de Deus · Admin' },
       { path: 'mapa', loadComponent: () => import('./pages/live-map.page'), title: 'Mapa operacional · Admin' },
       { path: 'geografia', loadComponent: () => import('./pages/geo.page'), title: 'Gestão geográfica · Admin' },
       { path: 'tarifas', loadComponent: () => import('./pages/fares.page'), title: 'Tarifas · Admin' },
