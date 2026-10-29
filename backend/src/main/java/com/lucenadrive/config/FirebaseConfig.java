@@ -83,7 +83,7 @@ public class FirebaseConfig {
     }
 
     @Bean
-    public FirebaseObjectStorage objectStorage(FirebaseApp app, LucenaProperties props) {
+    public com.lucenadrive.integration.ObjectStorage objectStorage(FirebaseApp app, LucenaProperties props) {
         String bucket = props.firebase().storageBucket();
         String emulator = System.getenv("FIREBASE_STORAGE_EMULATOR_HOST");
         if (props.firebase().emulators() && emulator != null && !emulator.isBlank()) {
@@ -94,7 +94,13 @@ public class FirebaseConfig {
                     .build().getService();
             return new FirebaseObjectStorage(storage, bucket);
         }
-        return new FirebaseObjectStorage(StorageClient.getInstance(app).bucket().getStorage(), bucket);
+        try {
+            return new FirebaseObjectStorage(StorageClient.getInstance(app).bucket().getStorage(), bucket);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            log.warn("Storage indisponível (bucket '{}' não encontrado ou não configurado): envio de documentos, "
+                    + "fotos e anexos ficará desativado. Detalhe: {}", bucket, e.getMessage());
+            return new com.lucenadrive.integration.UnavailableObjectStorage();
+        }
     }
 
     @Bean
