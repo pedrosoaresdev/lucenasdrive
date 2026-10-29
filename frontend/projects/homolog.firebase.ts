@@ -1,17 +1,16 @@
 /**
  * Homologação no projeto Firebase "lucenasdrive" (dados de TESTE, nunca de clientes reais).
  *
- * Cole aqui os valores do Console Firebase › Configurações do projeto › Seus apps › App da Web
- * (bloco firebaseConfig). São identificadores PÚBLICOS: a proteção vem das regras do Firestore/Storage,
+ * Valores do app da Web "lucena-drive-web" (Console Firebase › Configurações do projeto › Seus apps). São identificadores PÚBLICOS: a proteção vem das regras do Firestore/Storage,
  * da validação no servidor e, depois, do App Check. NUNCA coloque aqui a conta de serviço (JSON).
  */
 export const HOMOLOG_FIREBASE = {
-  apiKey: 'COLE_AQUI_apiKey',
+  apiKey: 'AIzaSyCNS4vD5HgtDNOaH2VR9cuT_ElFC5hDrX4',
   authDomain: 'lucenasdrive.firebaseapp.com',
   projectId: 'lucenasdrive',
-  storageBucket: 'COLE_AQUI_storageBucket',
-  appId: 'COLE_AQUI_appId',
-  messagingSenderId: 'COLE_AQUI_messagingSenderId',
+  storageBucket: 'lucenasdrive.firebasestorage.app',
+  appId: '1:572738150537:web:604560ab8a3d880c27a658',
+  messagingSenderId: '572738150537',
 };
 
 /** Console Firebase › Cloud Messaging › Certificados push da Web (chave pública). Vazio = push desativado. */

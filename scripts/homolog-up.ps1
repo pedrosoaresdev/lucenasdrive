@@ -75,8 +75,13 @@ if ($DeployRules -or -not (Test-Path (Join-Path $State 'rules-deployed'))) {
   Write-Host '> Publicando regras do Firestore/Storage e indices no projeto lucenasdrive (abre o login do Firebase se preciso)'
   Push-Location (Join-Path $Root 'firebase')
   npx firebase login
-  npx firebase deploy --only 'firestore:rules,firestore:indexes,storage' --project $ProjectId
-  if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'Falha ao publicar regras. Confira se Firestore e Storage estao criados no Console.' }
+  npx firebase deploy --only 'firestore:rules,firestore:indexes' --project $ProjectId
+  if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'Falha ao publicar regras do Firestore. Confira se o Firestore esta criado no Console.' }
+  npx firebase deploy --only storage --project $ProjectId
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host '  AVISO: regras do Storage nao publicadas (o bucket do Storage ainda nao existe; exige o plano Blaze).'
+    Write-Host '  Sem Storage, envio de documentos, fotos e anexos nao funciona na homologacao.'
+  }
   Pop-Location
   New-Item -ItemType File -Force -Path (Join-Path $State 'rules-deployed') | Out-Null
 }

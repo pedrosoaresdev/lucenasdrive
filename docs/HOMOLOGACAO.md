@@ -6,6 +6,17 @@ Ambiente para testar com o Firebase **real** (Auth, Firestore, Storage, envio de
 > Não é produção: não há provedor de pagamentos, a rota é aproximada sem chave do Google, e o App Check
 > ainda não está ativo. Não cadastre clientes reais.
 
+## Situação do projeto `lucenasdrive` (configurado em 2026-10-29)
+| Item | Situação |
+|---|---|
+| App da Web `lucena-drive-web` | ✅ criado; `frontend/projects/homolog.firebase.ts` preenchido |
+| Authentication — e-mail/senha | ✅ ativo |
+| Firestore `(default)` em `southamerica-east1` (São Paulo), modo nativo | ✅ criado |
+| Regras do Firestore (negação por padrão) | ✅ publicadas |
+| Índices compostos (47) | ✅ criados (levam alguns minutos para ficar prontos) |
+| Storage | ❌ **sem bucket**: projetos novos exigem o plano **Blaze** para o Storage. Sem ele não funcionam documentos de motoristas, fotos de perfil e anexos de suporte |
+| Conta de serviço (JSON do backend) | ⏳ gerar no Console e guardar fora do projeto (passo 5 abaixo) |
+
 ## 1. Preparar o projeto no Console Firebase (uma vez)
 1. **Authentication › Método de login:** ative **E-mail/senha**.
 2. **Firestore Database:** crie o banco no **modo de produção**, região `southamerica-east1` (São Paulo).
