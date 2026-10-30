@@ -7,6 +7,7 @@ import com.google.cloud.firestore.AggregateQuerySnapshot;
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.FieldPath;
 import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.Transaction;
 import java.util.Collection;
 import java.util.List;
@@ -68,6 +69,37 @@ public class FirestoreDocStore implements DocStore {
         return await(build(query).get()).getDocuments().stream()
                 .map(d -> DocMapper.fromMap(d.getData(), type))
                 .toList();
+    }
+
+    @Override
+    public <T> void scan(Query query, Class<T> type, int pageSize, java.util.function.Consumer<T> consumer) {
+        Query q = query.copyWithoutLimit();
+        com.google.cloud.firestore.Query base = build(q);
+        if (q.orders().isEmpty()) {
+            // Ordem estável para o cursor: campo de desigualdade (exigido pelo Firestore) e depois o ID do documento.
+            String ineq = q.filters().stream().filter(f -> f.op() == Query.Op.LT || f.op() == Query.Op.LTE
+                    || f.op() == Query.Op.GT || f.op() == Query.Op.GTE || f.op() == Query.Op.NEQ)
+                    .map(Query.Filter::field).findFirst().orElse(null);
+            if (ineq != null) {
+                base = base.orderBy(FieldPath.of(ineq.split("\\.")));
+            }
+            base = base.orderBy(FieldPath.documentId());
+        }
+        DocumentSnapshot last = null;
+        while (true) {
+            com.google.cloud.firestore.Query page = base.limit(Math.max(1, pageSize));
+            if (last != null) {
+                page = page.startAfter(last);
+            }
+            List<QueryDocumentSnapshot> docs = await(page.get()).getDocuments();
+            for (QueryDocumentSnapshot d : docs) {
+                consumer.accept(DocMapper.fromMap(d.getData(), type));
+            }
+            if (docs.size() < pageSize) {
+                return;
+            }
+            last = docs.get(docs.size() - 1);
+        }
     }
 
     @Override

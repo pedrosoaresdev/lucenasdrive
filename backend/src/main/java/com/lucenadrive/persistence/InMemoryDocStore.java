@@ -95,6 +95,12 @@ public class InMemoryDocStore implements DocStore {
     }
 
     @Override
+    public <T> void scan(Query query, Class<T> type, int pageSize, java.util.function.Consumer<T> consumer) {
+        Query all = query.copyWithoutLimit();
+        run(all).map(d -> DocMapper.fromMap(d, type)).forEach(consumer);
+    }
+
+    @Override
     public long count(Query query) {
         return run(query).count();
     }

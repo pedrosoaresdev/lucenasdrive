@@ -54,7 +54,15 @@
                 }
               ],
               "outputHashing": "all",
-              "serviceWorker": "projects/passenger/ngsw-config.json"
+              "serviceWorker": "projects/passenger/ngsw-config.json",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              }
             },
             "development": {
               "optimization": false,
@@ -151,7 +159,15 @@
                 }
               ],
               "outputHashing": "all",
-              "serviceWorker": "projects/driver/ngsw-config.json"
+              "serviceWorker": "projects/driver/ngsw-config.json",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              }
             },
             "development": {
               "optimization": false,
@@ -248,7 +264,15 @@
                 }
               ],
               "outputHashing": "all",
-              "serviceWorker": "projects/admin/ngsw-config.json"
+              "serviceWorker": "projects/admin/ngsw-config.json",
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": true
+              }
             },
             "development": {
               "optimization": false,

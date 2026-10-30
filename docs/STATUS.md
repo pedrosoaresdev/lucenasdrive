@@ -7,8 +7,8 @@ Resultados reais da última execução neste repositório:
 
 | Suíte | Comando | Resultado |
 |---|---|---|
-| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **64 testes, 0 falhas** (inclui rotas OSRM, plano B, CSV e degraus de demanda) |
-| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **18 testes, 0 falhas** (preço dinâmico e mapa de calor, relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
+| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **65 testes, 0 falhas** (inclui rotas OSRM, plano B, CSV, degraus de demanda e leitura paginada) |
+| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **19 testes, 0 falhas** + 3 contra o Firestore Emulator (exposição de endpoints internos, preço dinâmico e mapa de calor, relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
 | Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** (inclui negação de acesso a `presence` e `locationConsents`) |
 | Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **21 testes, 0 falhas** (inclui busca OpenStreetMap, polyline, convite de localização e painel de segurança) |
 | Build de produção dos 3 portais | `ng build …` | **sem erros nem avisos** |
@@ -76,6 +76,13 @@ alterações de tarifa programadas com data de vigência (versão criada no inst
 de quem ativou, no app, o compartilhamento opcional de localização. Somente ADMIN/OWNER; acessos auditados;
 consentimento revogável a qualquer momento em Perfil. O mapa exige a chave de navegador do Google Maps.
 
+**Etapa 6 (escala, valores exatos e segurança):** saldos de motoristas, financeiro, série diária do painel e
+anonimização LGPD agora leem os registros em páginas, sem teto silencioso (antes paravam em 10–20 mil registros e
+os totais podiam sair incompletos); painel mostra o financeiro do mês atual (o histórico fica em Financeiro);
+revisão de segurança: descrição da API fechada fora do desenvolvimento, CSP e HSTS nos portais publicados,
+cabeçalhos de segurança também nos service workers, build de produção sem código inline (verificado no navegador
+com a CSP ativa: zero violações).
+
 **Etapa 5:** preço dinâmico por demanda **opcional** por cidade (degraus por razão pedidos ÷ motoristas livres, teto,
 janela; aviso "Alta demanda" ao passageiro antes de confirmar; auditado), mapa de calor agregado da demanda para
 motoristas e admin (quadras de ~550 m, mínimo de 2 passageiros por quadra), limpeza automática de cotações vencidas,
@@ -114,7 +121,7 @@ saldos, chave Pix, saques, histórico, avaliações e contestação, perfil, sup
 | Docker / Compose | Escritos, **não verificados** (sem daemon Docker no ambiente de desenvolvimento) |
 | Push FCM no navegador | Implementado (service worker, permissão, token); **requer chave VAPID e projeto Firebase real** — não testado com entrega real (o emulador não entrega push) |
 | Rate limit com várias instâncias | Em memória por instância (agendadores já usam trava distribuída `schedulerLocks`); usar Redis para limite global |
-| Agregações administrativas em escala | Alguns relatórios iteram documentos (até 10–20 mil); criar contadores/rollups para volume alto |
+| Agregações administrativas em escala | Totais exatos (leitura paginada completa); com volume muito alto, o custo cresce — criar contadores/rollups diários quando necessário |
 | Imagens no chat | Localização no chat implementada; imagens dependem do Storage (plano Blaze) |
 | Segurança em viagem | Link de acompanhamento e alerta à equipe implementados; **não há central de monitoramento 24 h** (a tela orienta ligar 190/192) |
 | Homologação no Firebase `lucenasdrive` | **Em uso** pelo proprietário (Auth, Firestore em São Paulo, regras e índices publicados); Storage pendente (plano Blaze) |

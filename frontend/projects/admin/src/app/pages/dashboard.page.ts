@@ -56,7 +56,8 @@ interface DayPoint { date: string; completedRides: number; cancelledRides: numbe
         <a class="card kpi" routerLink="/cupons"><span class="label">Cupons ativos</span><span class="value">{{ d.activeCoupons }}</span></a>
       </div>
 
-      <h2>Financeiro</h2>
+      <h2>Financeiro · mês atual</h2>
+      <p class="small muted">Valores do mês corrente (horário de Brasília). Outros períodos e a exportação ficam em <a routerLink="/financeiro">Financeiro</a>.</p>
       <div class="grid kpis">
         <div class="card kpi"><span class="label">Valor bruto das corridas</span><span class="value">{{ f.grossRideValueCents | money }}</span>
           <span class="small muted">registrado · {{ f.cashRideValueCents | money }} em dinheiro</span></div>

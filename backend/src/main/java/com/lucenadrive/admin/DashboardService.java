@@ -105,7 +105,10 @@ public class DashboardService {
                 .eq("category", SupportTicket.Category.SAFETY).where("status", Query.Op.IN, List.of(SupportTicket.Status.OPEN,
                         SupportTicket.Status.IN_PROGRESS, SupportTicket.Status.ESCALATED))), 0L, f);
         long issues = metric("Conciliação", () -> (long) finance.reconciliation().size(), 0L, f);
-        FinanceService.PlatformFinance fin = metric("Financeiro", () -> finance.platform(Instant.EPOCH, now.plusSeconds(1)),
+        // Financeiro do MÊS ATUAL (fuso de Brasília): o histórico completo fica em Financeiro, por período.
+        Instant monthStart = LocalDate.now(clock.withZone(IdentityRegistrationService.BR)).withDayOfMonth(1)
+                .atStartOfDay(IdentityRegistrationService.BR).toInstant();
+        FinanceService.PlatformFinance fin = metric("Financeiro", () -> finance.platform(monthStart, now.plusSeconds(1)),
                 new FinanceService.PlatformFinance(Instant.EPOCH, now, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, false), f);
         List<CityCount> byCity = metric("Corridas por cidade", () -> {
             List<CityCount> list = new ArrayList<>();
@@ -131,7 +134,9 @@ public class DashboardService {
         for (int i = 0; i < span; i++) {
             buckets.put(today.minusDays(i).toString(), new long[4]);
         }
-        for (Ride r : store.query(Query.of(Collections.RIDES).where("createdAt", Query.Op.GTE, from).limit(20_000), Ride.class)) {
+        List<Ride> recent = new ArrayList<>();
+        store.scan(Query.of(Collections.RIDES).where("createdAt", Query.Op.GTE, from), Ride.class, 1_000, recent::add);
+        for (Ride r : recent) {
             Instant at = r.status() == RideStatus.COMPLETED && r.timeline().completedAt() != null
                     ? r.timeline().completedAt() : r.createdAt();
             long[] b = buckets.get(LocalDate.ofInstant(at, zone).toString());

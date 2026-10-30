@@ -50,3 +50,14 @@ Marque cada item antes de operar com usuários reais.
 - [ ] Encarregado (DPO) designado e canal de atendimento ao titular.
 - [ ] Plano de resposta a incidentes e comunicação à ANPD.
 - [ ] Monitoramento e alertas configurados; on-call definido.
+
+## Revisão de 2026-10-30
+- [x] `/v3/api-docs` e Swagger desligados fora do perfil de desenvolvimento (`SWAGGER_ENABLED`); teste `ExposureIT`.
+- [x] Actuator: só `health` e `info` públicos; métricas negadas (expor por porta de gerenciamento interna, se necessário).
+- [x] Portais (nginx): CSP, HSTS, nosniff, X-Frame-Options, Referrer-Policy e Permissions-Policy, inclusive nos
+      service workers; build de produção sem script/handler inline (`inlineCritical: false`).
+- [x] Comparações de assinatura/TOTP/sessão em tempo constante (`MessageDigest.isEqual`).
+- [x] Erros inesperados (inclusive em filtros) respondem no formato padrão com código de rastreio, sem detalhes internos.
+- [x] Totais financeiros e saldos sem truncamento silencioso (leitura paginada completa).
+- [ ] Atrás de proxy/balanceador: definir `FORWARD_HEADERS_STRATEGY=native` para IP real (limites por IP e auditoria).
+- [ ] Pentest externo antes da operação com clientes reais.

@@ -24,6 +24,12 @@ public interface DocStore {
 
     <T> List<T> query(Query query, Class<T> type);
 
+    /**
+     * Percorre TODOS os documentos da consulta em páginas (sem teto silencioso), na ordem da consulta.
+     * Use para totais e saldos que precisam ser exatos. O limite da consulta, se houver, é ignorado.
+     */
+    <T> void scan(Query query, Class<T> type, int pageSize, java.util.function.Consumer<T> consumer);
+
     long count(Query query);
 
     long sum(Query query, String field);

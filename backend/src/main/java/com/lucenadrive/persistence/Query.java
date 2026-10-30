@@ -61,6 +61,14 @@ public final class Query {
         return this;
     }
 
+    /** Cópia sem limite nem cursor (usada pela leitura paginada completa). */
+    public Query copyWithoutLimit() {
+        Query q = new Query(collection);
+        q.filters.addAll(filters);
+        q.orders.addAll(orders);
+        return q;
+    }
+
     public String collection() {
         return collection;
     }

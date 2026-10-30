@@ -40,6 +40,8 @@ logging:
 springdoc:
   api-docs:
     path: /v3/api-docs
+    # Descrição da API só quando habilitada (desenvolvimento); em produção não fica pública.
+    enabled: ${SWAGGER_ENABLED:false}
   swagger-ui:
     enabled: ${SWAGGER_ENABLED:false}
 
@@ -106,6 +108,8 @@ logging:
     format:
       console: ""
 springdoc:
+  api-docs:
+    enabled: true
   swagger-ui:
     enabled: true
 lucena:

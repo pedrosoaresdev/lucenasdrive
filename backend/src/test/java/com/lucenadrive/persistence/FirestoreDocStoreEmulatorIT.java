@@ -41,4 +41,23 @@ class FirestoreDocStoreEmulatorIT {
         store.query(Query.of(Collections.PRESENCE).where("updatedAt", Query.Op.GTE, java.time.Instant.now()).limit(10), Map.class);
         store.query(Query.of(Collections.FARE_CONFIGS).where("scheduled.effectiveFrom", Query.Op.LTE, java.time.Instant.now()).limit(10), Map.class);
     }
+
+    @Test
+    void scanReadsEveryDocumentAcrossPagesWithoutDuplicates() {
+        DocStore store = new FirestoreDocStore(firestore());
+        String col = "scanTest" + System.nanoTime();
+        java.time.Instant t0 = java.time.Instant.parse("2026-01-01T00:00:00Z");
+        for (int i = 0; i < 25; i++) {
+            // horários repetidos de propósito: o cursor precisa desempatar pelo ID do documento
+            store.set(col, "d" + i, Map.of("account", i % 5 == 0 ? "other" : "acc", "createdAt", t0.plusSeconds(i / 3), "n", i));
+        }
+        java.util.List<Map> eq = new java.util.ArrayList<>();
+        store.scan(Query.of(col).eq("account", "acc"), Map.class, 4, eq::add);
+        assertThat(eq).hasSize(20);
+        assertThat(eq.stream().map(m -> m.get("n")).distinct().count()).isEqualTo(20);
+        java.util.List<Map> range = new java.util.ArrayList<>();
+        store.scan(Query.of(col).where("createdAt", Query.Op.GTE, t0.plusSeconds(2)).limit(3), Map.class, 4, range::add);
+        assertThat(range).hasSize(19); // limite da consulta é ignorado no scan
+        assertThat(range.stream().map(m -> m.get("n")).distinct().count()).isEqualTo(19);
+    }
 }

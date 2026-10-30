@@ -147,7 +147,8 @@ public class PrivacyService {
                     .map(k -> Map.of("type", k.keyType(), "masked", k.keyMasked())).orElse(null));
             driver.put("payouts", store.query(Query.of(Collections.PAYOUT_REQUESTS).eq("ownerId", uid)
                     .orderBy("createdAt", Query.Direction.DESC).limit(LIMIT), PayoutRequest.class));
-            driver.put("ledger", ledger.byAccount(LedgerEntry.driverAccount(uid), null, null, 2_000));
+            driver.put("ledger", all(Query.of(Collections.LEDGER_ENTRIES).eq("account", LedgerEntry.driverAccount(uid)),
+                    LedgerEntry.class));
             out.put("driver", driver);
         });
 
@@ -297,7 +298,7 @@ public class PrivacyService {
         // 4) Corridas: retira nome, foto, placa e endereços; coordenadas ficam com ~1 km de precisão.
         int rides = 0;
         int messages = 0;
-        for (Ride r : store.query(Query.of(Collections.RIDES).eq("passengerId", uid).limit(10_000), Ride.class)) {
+        for (Ride r : all(Query.of(Collections.RIDES).eq("passengerId", uid), Ride.class)) {
             Map<String, Object> f = new HashMap<>(coarsePlaces(r));
             f.put("passenger.name", REMOVED);
             f.put("passenger.photoPath", "");
@@ -305,7 +306,7 @@ public class PrivacyService {
             rides++;
             messages += redactChat(r.id(), uid);
         }
-        for (Ride r : store.query(Query.of(Collections.RIDES).eq("driverId", uid).limit(10_000), Ride.class)) {
+        for (Ride r : all(Query.of(Collections.RIDES).eq("driverId", uid), Ride.class)) {
             store.update(Collections.RIDES, r.id(), Map.of("driver.name", REMOVED, "driver.photoPath", "",
                     "driver.plate", "REMOVIDA"));
             rides++;
@@ -320,13 +321,13 @@ public class PrivacyService {
 
         // 5) Comentários escritos pelo titular; notificações e tokens de push.
         int ratings = 0;
-        for (Rating r : store.query(Query.of(Collections.RATINGS).eq("raterId", uid).limit(10_000), Rating.class)) {
+        for (Rating r : all(Query.of(Collections.RATINGS).eq("raterId", uid), Rating.class)) {
             if (r.comment() != null) {
                 store.update(Collections.RATINGS, r.id(), Map.of("comment", "", "updatedAt", now));
                 ratings++;
             }
         }
-        store.query(Query.of(Collections.NOTIFICATIONS).eq("userId", uid).limit(10_000), Notification.class)
+        all(Query.of(Collections.NOTIFICATIONS).eq("userId", uid), Notification.class)
                 .forEach(n -> store.delete(Collections.NOTIFICATIONS, n.id()));
         store.query(Query.of(Collections.PUSH_TOKENS).eq("userId", uid).limit(100), PushToken.class)
                 .forEach(t -> store.delete(Collections.PUSH_TOKENS, t.id()));
@@ -342,6 +343,13 @@ public class PrivacyService {
         authAdmin.deleteAccount(uid);
         log.info("account_anonymized uid={} rides={} files={}", uid, rides, files);
         return result;
+    }
+
+    /** Leitura completa (anonimização precisa alcançar todos os registros do titular). */
+    private <T> List<T> all(Query q, Class<T> type) {
+        List<T> out = new ArrayList<>();
+        store.scan(q, type, 500, out::add);
+        return out;
     }
 
     private void assertNothingPending(String uid) {

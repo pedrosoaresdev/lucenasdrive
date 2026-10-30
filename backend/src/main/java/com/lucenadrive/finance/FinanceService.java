@@ -109,8 +109,9 @@ public class FinanceService {
         Query completed = Query.of(Collections.RIDES).eq("status", RideStatus.COMPLETED)
                 .where("timeline.completedAt", Query.Op.GTE, from).where("timeline.completedAt", Query.Op.LT, to);
         long gross = store.sum(completed, "fare.totalCents");
-        List<LedgerEntry> entries = store.query(Query.of(Collections.LEDGER_ENTRIES)
-                .where("createdAt", Query.Op.GTE, from).where("createdAt", Query.Op.LT, to).limit(20_000), LedgerEntry.class);
+        List<LedgerEntry> entries = new ArrayList<>();
+        store.scan(Query.of(Collections.LEDGER_ENTRIES).where("createdAt", Query.Op.GTE, from)
+                .where("createdAt", Query.Op.LT, to), LedgerEntry.class, 1_000, entries::add);
         long cash = 0, commission = 0, commissionReceived = 0, awaiting = 0, coupon = 0, fees = 0, refunds = 0,
                 chargebacks = 0, payoutsPending = 0, payoutsDone = 0;
         for (LedgerEntry e : entries) {
@@ -149,10 +150,11 @@ public class FinanceService {
                 awaiting += e.signedAmount();
             }
         }
-        long confirmed = store.query(Query.of(Collections.PAYMENT_TRANSACTIONS).eq("status", PaymentStatus.CONFIRMED)
-                        .where("updatedAt", Query.Op.GTE, from).where("updatedAt", Query.Op.LT, to).limit(20_000),
-                        PaymentTransaction.class)
-                .stream().mapToLong(PaymentTransaction::amountCents).sum();
+        long[] confirmedSum = {0};
+        store.scan(Query.of(Collections.PAYMENT_TRANSACTIONS).eq("status", PaymentStatus.CONFIRMED)
+                        .where("updatedAt", Query.Op.GTE, from).where("updatedAt", Query.Op.LT, to),
+                PaymentTransaction.class, 1_000, t -> confirmedSum[0] += t.amountCents());
+        long confirmed = confirmedSum[0];
         Long providerBalance = provider.configured() ? provider.availableBalanceCents().orElse(null) : null;
         return new PlatformFinance(from, to, gross, cash, confirmed, commission, commissionReceived, awaiting, coupon,
                 fees, refunds, chargebacks, payoutsPending, payoutsDone, providerBalance, provider.configured());

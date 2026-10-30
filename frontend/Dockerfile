@@ -13,6 +13,7 @@ RUN npx ng build passenger --configuration ${BUILD_CONFIGURATION} \
 FROM nginx:1.27-alpine
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/common.inc /etc/nginx/conf.d/common.inc
+COPY docker/security-headers.inc /etc/nginx/conf.d/security-headers.inc
 COPY --from=build /src/dist/passenger/browser /usr/share/nginx/passenger
 COPY --from=build /src/dist/driver/browser /usr/share/nginx/driver
 COPY --from=build /src/dist/admin/browser /usr/share/nginx/admin

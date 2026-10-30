@@ -65,6 +65,13 @@ public class LedgerService {
                 .orderBy("createdAt", Query.Direction.ASC), LedgerEntry.class);
     }
 
+    /** Todos os lançamentos da conta, lidos em páginas (saldo exato, sem teto). */
+    private List<LedgerEntry> allOf(String account) {
+        List<LedgerEntry> all = new java.util.ArrayList<>();
+        store.scan(Query.of(Collections.LEDGER_ENTRIES).eq("account", account), LedgerEntry.class, 1_000, all::add);
+        return all;
+    }
+
     public List<LedgerEntry> byAccount(String account, Instant from, Instant to, int limit) {
         Query q = Query.of(Collections.LEDGER_ENTRIES).eq("account", account);
         if (from != null) {
@@ -82,7 +89,7 @@ public class LedgerService {
      */
     public long withdrawable(String account) {
         long total = 0;
-        for (LedgerEntry e : byAccount(account, null, null, 10_000)) {
+        for (LedgerEntry e : allOf(account)) {
             if (e.type() == LedgerEntryType.PAYOUT && e.status() != LedgerStatus.REVERSED) {
                 total += e.signedAmount();
             } else if (e.type() != LedgerEntryType.PAYOUT && e.status() == LedgerStatus.AVAILABLE) {
@@ -106,7 +113,7 @@ public class LedgerService {
 
     public Balance balance(String account) {
         Map<LedgerStatus, Long> sums = new EnumMap<>(LedgerStatus.class);
-        for (LedgerEntry e : byAccount(account, null, null, 10_000)) {
+        for (LedgerEntry e : allOf(account)) {
             sums.merge(e.status(), e.signedAmount(), Long::sum);
         }
         return new Balance(account, sums);
