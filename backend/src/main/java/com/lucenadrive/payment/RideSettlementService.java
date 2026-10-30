@@ -1,5 +1,6 @@
 package com.lucenadrive.payment;
 
+import com.lucenadrive.common.crypto.FieldEncryptor;
 import com.lucenadrive.common.web.Ids;
 import com.lucenadrive.ledger.LedgerEntry;
 import com.lucenadrive.ledger.LedgerEntryType;
@@ -8,6 +9,8 @@ import com.lucenadrive.ledger.LedgerStatus;
 import com.lucenadrive.persistence.Collections;
 import com.lucenadrive.persistence.Tx;
 import com.lucenadrive.ride.Ride;
+import com.lucenadrive.user.User;
+import com.lucenadrive.user.UserPrivate;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -27,18 +30,25 @@ public class RideSettlementService {
     private final PaymentProvider provider;
     private final com.lucenadrive.persistence.DocStore store;
     private final Clock clock;
+    private final PaymentAccountService accounts;
+    private final FieldEncryptor encryptor;
 
     public RideSettlementService(LedgerService ledger, PaymentProvider provider,
-                                 com.lucenadrive.persistence.DocStore store, Clock clock) {
+                                 com.lucenadrive.persistence.DocStore store, Clock clock,
+                                 PaymentAccountService accounts, FieldEncryptor encryptor) {
         this.ledger = ledger;
         this.provider = provider;
         this.store = store;
         this.clock = clock;
+        this.accounts = accounts;
+        this.encryptor = encryptor;
     }
 
     /**
-     * Após concluir corrida Pix/cartão: cria a cobrança no provedor. Falhas deixam a transação em
-     * AWAITING_PROVIDER sem identificador externo — o relatório de conciliação aponta o caso.
+     * Após concluir corrida Pix/cartão: cria a cobrança no provedor. Com carteira do motorista
+     * vinculada, a parte dele vai no split da própria cobrança (o provedor repassa direto); a
+     * comissão fica na conta da plataforma. Falhas deixam a transação em AWAITING_PROVIDER sem
+     * identificador externo — o relatório de conciliação aponta o caso.
      */
     public void requestCharge(Ride ride) {
         if (ride.paymentMethod() == PaymentMethod.CASH || ride.fare().finalCents() <= 0) {
@@ -51,16 +61,47 @@ public class RideSettlementService {
         }
         PaymentTransaction t = txns.get(0);
         try {
+            String payerName = store.get(Collections.USERS, ride.passengerId(), User.class).map(User::fullName).orElse(null);
+            String payerCpf = store.get(Collections.USER_PRIVATE, ride.passengerId(), UserPrivate.class)
+                    .map(p -> encryptor.decrypt(p.cpfEncrypted())).orElse(null);
+            long earning = ride.fare().driverEarningCents();
+            String wallet = accounts.walletFor(ride.driverId())
+                    .filter(w -> earning > 0 && earning < t.amountCents()).orElse(null);
+            Long split = wallet != null ? earning : null;
             PaymentProvider.ChargeResult result = provider.createCharge(new PaymentProvider.ChargeRequest(
                     t.idempotencyKey(), ride.id(), t.amountCents(), t.method(), ride.passengerId(),
-                    "Lucena Drive corrida " + ride.code()));
-            store.set(Collections.PAYMENT_TRANSACTIONS, t.id(), new PaymentTransaction(t.id(), t.rideId(),
-                    t.passengerId(), t.driverId(), t.method(), t.amountCents(), t.currency(), t.status(), provider.name(),
-                    result.providerChargeId(), t.providerFeeCents(), t.statusHistory(), t.idempotencyKey(),
-                    t.createdAt(), Instant.now(clock)));
+                    "Lucena Drive corrida " + ride.code(), payerName, payerCpf, wallet, split));
+            store.set(Collections.PAYMENT_TRANSACTIONS, t.id(),
+                    t.withCharge(provider.name(), result, wallet, split, Instant.now(clock)));
         } catch (RuntimeException e) {
             log.warn("charge_creation_failed ride={} err={}", ride.id(), e.toString());
         }
+    }
+
+    public record ChargeView(String rideId, PaymentMethod method, PaymentStatus status, long amountCents,
+                             String pixCopyPaste, String pixQrCodeBase64, String checkoutUrl, boolean chargeCreated,
+                             boolean splitToDriver) {
+    }
+
+    /** Dados para o passageiro pagar (QR Pix / link do cartão). Somente o passageiro da corrida. */
+    public ChargeView chargeFor(String rideId, String passengerId) {
+        PaymentTransaction t = store.query(com.lucenadrive.persistence.Query.of(Collections.PAYMENT_TRANSACTIONS)
+                .eq("rideId", rideId).limit(1), PaymentTransaction.class).stream().findFirst()
+                .filter(x -> x.passengerId().equals(passengerId))
+                .orElseThrow(() -> com.lucenadrive.common.error.ApiException.notFound("Cobrança"));
+        boolean open = t.status() == PaymentStatus.AWAITING_PROVIDER;
+        return new ChargeView(t.rideId(), t.method(), t.status(), t.amountCents(), open ? t.pixCopyPaste() : null,
+                open ? t.pixQrCodeBase64() : null, open ? t.checkoutUrl() : null, t.providerChargeId() != null,
+                t.splitToDriver());
+    }
+
+    /** Nova tentativa de criar a cobrança (quando a primeira falhou). */
+    public ChargeView retryCharge(String rideId, String passengerId) {
+        ChargeView current = chargeFor(rideId, passengerId);
+        if (!current.chargeCreated() && current.status() == PaymentStatus.AWAITING_PROVIDER) {
+            store.get(Collections.RIDES, rideId, Ride.class).ifPresent(this::requestCharge);
+        }
+        return chargeFor(rideId, passengerId);
     }
 
     public record Plan(List<LedgerService.Draft> drafts, PaymentTransaction transaction, PaymentStatus rideStatus) {
@@ -118,7 +159,7 @@ public class RideSettlementService {
         PaymentTransaction txn = new PaymentTransaction(Ids.newId(), ride.id(), ride.passengerId(), ride.driverId(),
                 ride.paymentMethod(), f.finalCents(), "BRL", status, ride.paymentMethod() == PaymentMethod.CASH ? null : "pending",
                 null, null, List.of(new PaymentTransaction.StatusChange(status, now, "ride_completed")),
-                key + ":payment_txn", now, now);
+                key + ":payment_txn", now, now, null, null, null, null, null);
         return new Plan(fresh, txn, status);
     }
 

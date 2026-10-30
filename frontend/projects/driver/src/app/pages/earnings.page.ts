@@ -11,6 +11,11 @@ interface DriverFinance {
   payouts: PayoutRequest[]; payoutsAvailable: boolean;
 }
 
+interface SplitStatus {
+  provider: string; splitSupported: boolean;
+  account: { provider: string; walletMasked: string; active: boolean; updatedAt: string } | null;
+}
+
 const ENTRY_LABEL: Record<string, string> = {
   RIDE_FARE_CASH: 'Corrida recebida em dinheiro', DRIVER_EARNING: 'Ganho de corrida', DRIVER_COMMISSION_DUE: 'Comissão devida',
   COUPON_SUBSIDY: 'Repasse de cupom', CANCELLATION_FEE: 'Taxa de cancelamento', PAYOUT: 'Saque', ADJUSTMENT: 'Ajuste',
@@ -48,6 +53,35 @@ const STATUS_LABEL: Record<string, string> = {
             <div class="kpi"><span class="label">Disponível para saque</span><span class="value small-v ok">{{ f.withdrawableCents | money }}</span></div>
           </div>
         </section>
+
+        @if (split(); as sp) {
+          <section class="card stack">
+            <h2>Recebimento automático</h2>
+            @if (!sp.splitSupported) {
+              <ld-integration-pending name="Recebimento automático" detail="Disponível quando o provedor de pagamentos (Asaas) estiver configurado." />
+            } @else {
+              <p class="small muted">
+                Nas corridas pagas por Pix ou cartão, o Asaas separa sua parte na hora do pagamento e envia direto para a sua
+                carteira Asaas; a taxa da plataforma fica com a plataforma. Sem carteira vinculada, sua parte entra no saldo
+                acima e você saca por Pix.
+              </p>
+              @if (sp.account; as a) {
+                <p class="small">Carteira vinculada: <span class="mono">{{ a.walletMasked }}</span>
+                  @if (!a.active) { <span class="badge">de outro provedor — inativa</span> }</p>
+              }
+              <label class="small" for="wallet">ID da sua carteira no Asaas (walletId — aparece na área de Integrações da sua conta Asaas)</label>
+              <input id="wallet" class="input mono" [(ngModel)]="walletId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                     autocomplete="off" spellcheck="false" />
+              <input class="input" type="password" [(ngModel)]="password" placeholder="Confirme sua senha" aria-label="Senha para confirmar a carteira" autocomplete="current-password" />
+              <div class="row">
+                <button class="btn primary" (click)="saveWallet()" [disabled]="busy() || !walletId || !password">Vincular carteira</button>
+                @if (sp.account) {
+                  <button class="btn ghost" (click)="removeWallet()" [disabled]="busy() || !password">Desvincular</button>
+                }
+              </div>
+            }
+          </section>
+        }
 
         <section class="card stack">
           <h2>Saques via Pix</h2>
@@ -106,6 +140,8 @@ export class EarningsPage implements OnInit {
   private readonly toast = inject(ToastService);
   protected readonly fin = signal<DriverFinance | null>(null);
   protected readonly pixKey = signal<{ keyType: string; keyMasked: string } | null>(null);
+  protected readonly split = signal<SplitStatus | null>(null);
+  protected walletId = '';
   protected readonly error = signal('');
   protected readonly busy = signal(false);
   protected readonly statuses = ['RECORDED', 'AWAITING_SETTLEMENT', 'AVAILABLE', 'PAID'];
@@ -125,6 +161,7 @@ export class EarningsPage implements OnInit {
     try {
       this.fin.set(await this.api.get<DriverFinance>('/drivers/me/finance'));
       this.pixKey.set(await this.api.get('/drivers/me/finance/pix-key'));
+      this.split.set(await this.api.get<SplitStatus>('/drivers/me/finance/split-account'));
     } catch (e) {
       this.error.set(ApiError.from(e).message);
     }
@@ -142,6 +179,35 @@ export class EarningsPage implements OnInit {
       this.pixKey.set(await this.api.put('/drivers/me/finance/pix-key', this.pix));
       this.pix.key = '';
       this.toast.ok('Chave Pix atualizada.');
+    } catch (e) {
+      this.toast.error(ApiError.from(e).message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async saveWallet(): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.reauth();
+      await this.api.put('/drivers/me/finance/split-account', { walletId: this.walletId.trim() });
+      this.walletId = '';
+      this.toast.ok('Carteira vinculada. As próximas corridas digitais serão repassadas automaticamente.');
+      this.split.set(await this.api.get<SplitStatus>('/drivers/me/finance/split-account'));
+    } catch (e) {
+      this.toast.error(ApiError.from(e).message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async removeWallet(): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.reauth();
+      await this.api.delete('/drivers/me/finance/split-account');
+      this.toast.ok('Carteira desvinculada. Sua parte voltará a entrar no saldo para saque.');
+      this.split.set(await this.api.get<SplitStatus>('/drivers/me/finance/split-account'));
     } catch (e) {
       this.toast.error(ApiError.from(e).message);
     } finally {

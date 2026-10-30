@@ -8,7 +8,7 @@ Resultados reais da última execução neste repositório:
 | Suíte | Comando | Resultado |
 |---|---|---|
 | Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **66 testes, 0 falhas** (inclui matriz de ETA do OSRM, rotas OSRM, plano B, CSV, degraus de demanda e leitura paginada) |
-| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **21 testes, 0 falhas** (inclui despacho por menor ETA com OSRM simulado e queda para distância) + 3 contra o Firestore Emulator (exposição de endpoints internos, preço dinâmico e mapa de calor, relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
+| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **22 testes, 0 falhas** (inclui pagamentos Asaas com split contra API simulada, despacho por menor ETA com OSRM simulado e queda para distância) + 3 contra o Firestore Emulator (exposição de endpoints internos, preço dinâmico e mapa de calor, relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
 | Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** (inclui negação de acesso a `presence` e `locationConsents`) |
 | Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **21 testes, 0 falhas** (inclui busca OpenStreetMap, polyline, convite de localização e painel de segurança) |
 | Build de produção dos 3 portais | `ng build …` | **sem erros nem avisos** |
@@ -118,7 +118,7 @@ saldos, chave Pix, saques, histórico, avaliações e contestação, perfil, sup
 ## Pendente / limitações conhecidas
 | Item | Observação |
 |---|---|
-| Adaptador do provedor de pagamentos (Pix/cartão/split/transferência) | Porta e pipeline prontos; falta contratar e implementar ([INTEGRATIONS.md](INTEGRATIONS.md)) |
+| Pagamentos Asaas (Pix/cartão/split automático/transferência) | Adaptador implementado e testado contra API simulada; falta homologar no sandbox real com a sua chave e, para produção, conta aprovada ([INTEGRATIONS.md](INTEGRATIONS.md)) |
 | Google Maps com chave real | Implementado, **não testado com chave** neste ambiente |
 | Verificação de telefone (SMS) | Não implementada no fluxo de cadastro |
 | App Check | Configuração de projeto pendente |
@@ -135,7 +135,7 @@ saldos, chave Pix, saques, histórico, avaliações e contestação, perfil, sup
 | Revisões externas | Segurança (pentest), jurídica (termos, privacidade, regulação municipal) |
 
 ## Próximas etapas sugeridas
-1. Contratar provedor de pagamentos e implementar o adaptador + homologação (sandbox).
+1. Homologar pagamentos no sandbox do Asaas com a chave do titular (adaptador pronto).
 2. Projeto Firebase de homologação, chaves Google restritas, App Check, deploy de regras/índices.
 3. Gerar a chave VAPID e testar o push com entrega real; verificação de telefone.
 4. Contadores agregados para o dashboard; limite de requisições global (Redis).

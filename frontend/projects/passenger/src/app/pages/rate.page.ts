@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { RidePaymentComponent } from '../components/ride-payment.component';
 import {
   ApiError, ApiService, AvatarComponent, KmPipe, MoneyPipe, PublicConfig, RideView, StarRatingComponent,
   StateViewComponent, ToastService,
@@ -16,7 +17,7 @@ const POSITIVE = ['DIRECAO_SEGURA', 'CARRO_LIMPO', 'PONTUALIDADE', 'CORDIALIDADE
 /** Avaliação do motorista (1 a 5 estrelas), disponível também ao reabrir o app. */
 @Component({
   selector: 'app-rate',
-  imports: [FormsModule, AvatarComponent, MoneyPipe, KmPipe, StarRatingComponent, StateViewComponent],
+  imports: [FormsModule, RidePaymentComponent, AvatarComponent, MoneyPipe, KmPipe, StarRatingComponent, StateViewComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="container page">
@@ -30,6 +31,7 @@ const POSITIVE = ['DIRECAO_SEGURA', 'CARRO_LIMPO', 'PONTUALIDADE', 'CORDIALIDADE
         </div>
       } @else {
         @let r = ride()!;
+        @if (r.paymentMethod !== 'CASH') { <app-ride-payment [rideId]="r.id" /> }
         <form class="card stack fade-in" (submit)="submit($event)">
           <div class="driver">
             <ld-avatar [path]="r.driver?.photoPath" [name]="r.driver?.name ?? ''" [size]="64" />
@@ -39,7 +41,7 @@ const POSITIVE = ['DIRECAO_SEGURA', 'CARRO_LIMPO', 'PONTUALIDADE', 'CORDIALIDADE
             </div>
           </div>
           <div class="summary small muted">
-            <span>{{ r.route.distanceMeters | km }}</span><span>·</span><span>Total pago: <strong>{{ r.fare.finalCents | money }}</strong></span>
+            <span>{{ r.route.distanceMeters | km }}</span><span>·</span><span>Total: <strong>{{ r.fare.finalCents | money }}</strong></span>
           </div>
           <h1 id="q">Como foi sua experiência com o Lucena Drive?</h1>
           <ld-star-rating class="stars" [(value)]="stars" label="Como foi sua experiência com o Lucena Drive?" />

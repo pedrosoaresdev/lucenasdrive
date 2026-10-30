@@ -9,7 +9,7 @@ Nenhuma destas integrações está simulada como se estivesse funcionando. Sem c
 | 2a | **OpenStreetMap (padrão, sem chave)** — Leaflet + tiles OSM, Photon (busca), OSRM (rotas) | Implementado, com plano B automático (linha reta sinalizada) | Para escala: hospedar OSRM/Photon/tiles próprios ou contratar provedor; públicos não têm garantia |
 | 2 | **Google Maps JavaScript API + Places (New) + Geocoding** (navegador, opcional) | Implementado (`MapsLoaderService`, `MapComponent`, `PlaceSearchComponent`) | Chave de navegador restrita por referenciador HTTP (domínios dos portais) e por API; faturamento ativo; opcional `mapsMapId` |
 | 3 | **Google Routes API** (servidor) | Implementado (`GoogleRoutesProvider`, ETA a cada 60 s por corrida) | Chave de servidor restrita por IP/conta e à Routes API (`MAPS_SERVER_API_KEY`); orçamento e alertas de faturamento |
-| 4 | **Provedor de pagamentos (marketplace: Pix, cobrança, split, webhooks, transferências)** | Porta `PaymentProvider`, pipeline de webhooks (assinatura HMAC, idempotência), ledger, saques, conciliação interna; **sem adaptador de provedor real** | Escolher e contratar provedor (ex.: Asaas, Pagar.me, Mercado Pago, Stripe Connect — avaliar requisitos de subconta/split e KYC); implementar o adaptador (`PaymentProvider` + tradução do webhook para `ProviderEvent` + verificação de assinatura do provedor); sandbox; homologação; conferência automática com o extrato |
+| 4 | **Provedor de pagamentos: Asaas (Pix, cartão, split automático, webhooks, transferências)** | Adaptador Asaas implementado e testado contra API simulada; QR Pix e link de cartão no app; carteira do motorista para split; conciliação ativa | Chave do **sandbox** para homologar; conta aprovada e chave de **produção**; webhook com endereço público; carteiras Asaas dos motoristas |
 | 5 | **Firebase Cloud Messaging (push)** | Envio no backend (`FcmPushSender`); no navegador: `PushService`, service worker próprio (`firebase-messaging-sw.js`), permissão por ação do usuário, token removido no logout | Gerar a chave VAPID (Console Firebase › Configurações do projeto › Cloud Messaging › Certificados push da Web) e preencher `fcmVapidKey` e `messagingSenderId` no environment de cada portal. Sem ela, a tela mostra "Integração pendente". O emulador não entrega push: testar em homologação |
 | 6 | **Verificação de telefone** | Campo armazenado; `phoneVerified` derivado do token | Ativar Phone Auth (reCAPTCHA/App Check, custos de SMS) e o fluxo de vinculação no frontend |
 | 7 | **URLs assinadas de documentos** (equipe) | Implementado (`signedReadUrl`, 5 min, auditado) | Conta de serviço com permissão de assinar (`iam.serviceAccountTokenCreator`); no Emulator retorna integração pendente |
@@ -28,21 +28,53 @@ Nenhuma destas integrações está simulada como se estivesse funcionando. Sem c
 - **Termos**: exibição de dados do Google deve seguir os termos da Google Maps Platform (ex.: mostrar em mapa
   Google, atribuição).
 
-## Pagamentos — pontos de extensão
-1. `payment/PaymentProvider.java`: `createCharge`, `createTransfer`, `availableBalanceCents`.
-2. `payment/PaymentConfig.java`: registrar o adaptador conforme `lucena.payments.provider`.
-3. `payment/webhook/WebhookService.parse`: substituir o formato genérico pela tradução do payload do provedor e,
-   se o provedor não usar HMAC SHA-256 no corpo, implementar o verificador específico.
-4. Habilitar `PIX`/`CARD` aparece automaticamente na interface quando `configured()` é verdadeiro.
-5. Conciliação: implementar importação do extrato do provedor e comparação com `paymentTransactions`,
-   `payoutRequests` e `ledgerEntries`.
+## Pagamentos — Asaas com split automático (escolhido pelo proprietário)
+Adaptador: `payment/asaas/AsaasPaymentProvider.java` (API v3). Ativado com:
+
+| Variável | Valor |
+|---|---|
+| `PAYMENTS_PROVIDER` | `asaas` |
+| `PAYMENTS_API_KEY` | chave de API do Asaas (sandbox começa com `$aact_`). **Só no ambiente do servidor**; nunca no Angular nem no git |
+| `PAYMENTS_ENVIRONMENT` | `sandbox` (padrão; `https://api-sandbox.asaas.com/v3`) ou `production` (`https://api.asaas.com/v3`) |
+| `PAYMENTS_WEBHOOK_SECRET` | token de autenticação do webhook (o mesmo cadastrado no painel do Asaas; chega no cabeçalho `asaas-access-token`) |
+
+**Como o dinheiro é dividido**
+1. Ao concluir uma corrida Pix/cartão, o backend cria a cobrança no Asaas (cliente criado uma vez por passageiro,
+   com nome e CPF — exigidos pelo Asaas; o CPF é descriptografado só em memória para essa chamada).
+2. Se o motorista vinculou a **carteira Asaas** (`walletId`, tela *Ganhos → Recebimento automático*), a cobrança vai
+   com `split: [{walletId, fixedValue: parte do motorista}]`: o Asaas envia a parte dele direto para a carteira dele
+   e o restante (comissão) fica na conta da plataforma. **A tarifa do Asaas é descontada da parte da plataforma**
+   (lançada como `PROVIDER_FEE`).
+3. Sem carteira (ou se o Asaas recusar a carteira), a cobrança sai sem split: a parte do motorista entra no saldo
+   dele e é sacada por Pix (transferência Asaas), como antes.
+4. Com split, o ganho do motorista é marcado como **PAGO** na liquidação e **não** entra no saldo de saque
+   (evita pagar duas vezes).
+5. Pix: o passageiro vê QR Code e "copia e cola" no app. Cartão: link para a página segura do Asaas (os dados do
+   cartão nunca passam pela plataforma).
+
+**Confirmação** (nunca simulada): somente por (a) webhook autenticado do Asaas ou (b) consulta autenticada
+`GET /payments/{id}` feita pelo servidor — a cada minuto para cobranças pendentes dos últimos 3 dias e quando o
+passageiro toca em "Já paguei — verificar". Eventos tratados: `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED` (liquidação),
+`PAYMENT_OVERDUE`/`PAYMENT_DELETED`/recusas (falha), `PAYMENT_REFUNDED`, `PAYMENT_CHARGEBACK_REQUESTED`,
+`TRANSFER_DONE`, `TRANSFER_FAILED`/`TRANSFER_CANCELLED`. Outros eventos e cobranças que não são da plataforma
+recebem 200 e são ignorados (o Asaas pausa a fila de webhooks após falhas seguidas).
+
+**Webhook** — no painel do Asaas: *Integrações → Webhooks*, URL `https://SEU_DOMINIO/api/v1/webhooks/payments/asaas`,
+token = `PAYMENTS_WEBHOOK_SECRET`, eventos de cobrança e de transferência. Em homologação no seu computador não há
+endereço público: a conciliação ativa (consulta a cada minuto) cobre esse caso.
+
+**Antes de produção (pendências reais)**
+- Conta Asaas da plataforma aprovada (dados da empresa/titular) e chave de **produção** no servidor.
+- Cada motorista precisa de conta/carteira Asaas própria (ou subconta criada pela plataforma via `POST /accounts`,
+  que exige dados cadastrais completos — não implementado).
+- Transferências (saques) pela API podem exigir validação adicional no Asaas (token/SMS ou webhook de autorização
+  de saque) — configurar no painel.
+- Reembolso/chargeback com split: o Asaas define como estornar a parte já repassada; revisar no contrato.
+- Política de privacidade: informar o compartilhamento de nome/CPF com o processador de pagamentos.
+- Taxas: consultar a tabela vigente no site do Asaas (Pix e cartão têm tarifa por transação).
+
+**Testes**: `AsaasIT` usa um servidor local que reproduz a API do Asaas (split, recusa de carteira, QR Pix,
+webhook com token, eventos alheios ignorados, conciliação). A homologação no sandbox real exige a chave do titular.
 
 **A transferência financeira real só deve ser considerada concluída após uma transação de homologação confirmada
 pelo provedor.**
-
-## Pagamentos com divisão automática (decisão do proprietário)
-O proprietário optou por um gateway sem mensalidade com **split automático** (comissão da plataforma × parte do
-motorista). O sistema já separa esses valores por corrida no ledger (`PLATFORM_COMMISSION`, `DRIVER_EARNING`/
-`DRIVER_COMMISSION_DUE`), então o adaptador do gateway só precisa repassar a regra de divisão na cobrança.
-Observação: gateways "grátis" cobram **taxa por transação** (Pix/cartão); comparar Asaas, Mercado Pago e outros
-antes de implementar. Pendente: escolha do gateway, conta de testes (sandbox) e chaves (fornecidas fora do chat).

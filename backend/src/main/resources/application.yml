@@ -91,6 +91,7 @@ lucena:
     api-key: ${PAYMENTS_API_KEY:}
     webhook-secret: ${PAYMENTS_WEBHOOK_SECRET:}
     environment: ${PAYMENTS_ENVIRONMENT:sandbox}
+    base-url: ${PAYMENTS_BASE_URL:}
   rate-limit:
     requests-per-minute: 120
     admin-requests-per-minute: 300

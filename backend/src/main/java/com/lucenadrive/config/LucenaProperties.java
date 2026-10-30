@@ -25,7 +25,7 @@ public record LucenaProperties(
         dispatch = dispatch != null ? dispatch : new Dispatch(null, 0, null, 0, 0, null, -1);
         chat = chat != null ? chat : new Chat(0, 0, 0, null, null);
         ratings = ratings != null ? ratings : new Ratings(true, null);
-        payments = payments != null ? payments : new Payments("none", null, null, null);
+        payments = payments != null ? payments : new Payments("none", null, null, null, null);
         rateLimit = rateLimit != null ? rateLimit : new RateLimit(0, 0);
     }
 
@@ -108,7 +108,8 @@ public record LucenaProperties(
     }
 
     /** provider: "none" até a contratação de um provedor. webhookSecret: segredo HMAC do provedor. */
-    public record Payments(String provider, String apiKey, String webhookSecret, String environment) {
+    /** baseUrl: opcional; vazio = endereço oficial do provedor conforme environment (sandbox/production). */
+    public record Payments(String provider, String apiKey, String webhookSecret, String environment, String baseUrl) {
         public Payments {
             provider = provider != null ? provider : "none";
             environment = environment != null ? environment : "sandbox";

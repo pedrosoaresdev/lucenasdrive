@@ -17,6 +17,12 @@ public class ApiException extends RuntimeException {
         this.details = details == null ? Map.of() : details;
     }
 
+    public ApiException(ErrorCode code, String message, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+        this.details = Map.of();
+    }
+
     public ErrorCode code() {
         return code;
     }

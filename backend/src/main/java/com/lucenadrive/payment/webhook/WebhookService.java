@@ -9,6 +9,7 @@ import com.lucenadrive.ledger.LedgerService;
 import com.lucenadrive.ledger.LedgerStatus;
 import com.lucenadrive.notification.NotificationService;
 import com.lucenadrive.notification.NotificationType;
+import com.lucenadrive.payment.PaymentProvider;
 import com.lucenadrive.payment.PaymentStatus;
 import com.lucenadrive.payment.PaymentTransaction;
 import com.lucenadrive.payout.PayoutRequest;
@@ -20,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -41,9 +43,11 @@ public class WebhookService {
     private final LucenaProperties props;
     private final JsonMapper json;
     private final Clock clock;
+    private final PaymentProvider paymentProvider;
 
     public WebhookService(DocStore store, LedgerService ledger, NotificationService notifications,
-                          LucenaProperties props, JsonMapper json, Clock clock) {
+                          LucenaProperties props, JsonMapper json, Clock clock, PaymentProvider paymentProvider) {
+        this.paymentProvider = paymentProvider;
         this.store = store;
         this.ledger = ledger;
         this.notifications = notifications;
@@ -52,9 +56,14 @@ public class WebhookService {
         this.clock = clock;
     }
 
-    public enum Outcome { PROCESSED, DUPLICATE }
+    public enum Outcome { PROCESSED, DUPLICATE, IGNORED }
 
     public Outcome receive(String provider, byte[] body, String signature) {
+        return receive(provider, body, signature == null ? Map.of() : Map.of("x-lucena-signature", signature));
+    }
+
+    /** headers: nomes em minúsculas. */
+    public Outcome receive(String provider, byte[] body, Map<String, String> headers) {
         String secret = props.payments().webhookSecret();
         if (secret == null || secret.isBlank()) {
             throw new ApiException(ErrorCode.INTEGRATION_NOT_CONFIGURED, "Webhooks de pagamento não configurados.");
@@ -62,12 +71,40 @@ public class WebhookService {
         if (!provider.equalsIgnoreCase(props.payments().provider())) {
             throw new ApiException(ErrorCode.NOT_FOUND, "Provedor desconhecido.");
         }
-        if (!WebhookSignature.verify(secret, body, signature)) {
+        var adapter = paymentProvider.webhookAdapter();
+        boolean authentic = adapter.isPresent() ? adapter.get().authentic(body, headers, secret)
+                : WebhookSignature.verify(secret, body, headers.get("x-lucena-signature"));
+        if (!authentic) {
             log.warn("webhook_invalid_signature provider={}", provider);
             throw new ApiException(ErrorCode.INVALID_SIGNATURE, "Assinatura inválida.");
         }
-        ProviderEvent event = parse(provider, body);
-        return process(event);
+        if (adapter.isPresent()) {
+            Optional<ProviderEvent> event;
+            try {
+                event = adapter.get().parse(body);
+            } catch (RuntimeException e) {
+                throw new ApiException(ErrorCode.VALIDATION_FAILED, "Payload de webhook inválido.");
+            }
+            return event.map(this::processFromProvider).orElse(Outcome.IGNORED);
+        }
+        return process(parse(provider, body));
+    }
+
+    /**
+     * Eventos de cobranças/transferências que não são desta plataforma (a conta do provedor pode
+     * ter outros usos) são ignorados com 200 para não travar a fila de entrega do provedor.
+     */
+    private Outcome processFromProvider(ProviderEvent e) {
+        boolean known = e.chargeId() != null
+                ? !store.query(Query.of(Collections.PAYMENT_TRANSACTIONS).eq("providerChargeId", e.chargeId()).limit(1),
+                        PaymentTransaction.class).isEmpty()
+                : e.transferId() != null && !store.query(Query.of(Collections.PAYOUT_REQUESTS)
+                        .eq("providerTransferId", e.transferId()).limit(1), PayoutRequest.class).isEmpty();
+        if (!known) {
+            log.info("webhook_ignored_unknown provider={} event={} type={}", e.provider(), e.eventId(), e.type());
+            return Outcome.IGNORED;
+        }
+        return process(e);
     }
 
     /**
@@ -130,6 +167,7 @@ public class WebhookService {
             throw new ApiException(ErrorCode.NOT_FOUND, "Cobrança desconhecida: " + e.chargeId());
         }
         String txnId = txns.get(0).id();
+        PaymentStatus before = txns.get(0).status();
         PaymentTransaction updated = store.transaction(tx -> {
             PaymentTransaction t = tx.get(Collections.PAYMENT_TRANSACTIONS, txnId, PaymentTransaction.class).orElseThrow();
             Ride ride = tx.get(Collections.RIDES, t.rideId(), Ride.class).orElseThrow();
@@ -144,7 +182,9 @@ public class WebhookService {
             PaymentTransaction next = t;
             switch (e.type()) {
                 case PAYMENT_CONFIRMED -> {
-                    next = t.withStatus(PaymentStatus.CONFIRMED, now, "webhook:" + e.eventId(), e.feeCents());
+                    if (t.status() == PaymentStatus.AWAITING_PROVIDER || t.status() == PaymentStatus.FAILED) {
+                        next = t.withStatus(PaymentStatus.CONFIRMED, now, "webhook:" + e.eventId(), e.feeCents());
+                    }
                     if (e.feeCents() != null && e.feeCents() > 0 && !feeExists) {
                         ledger.write(tx, new LedgerService.Draft(LedgerEntryType.PROVIDER_FEE, LedgerEntry.PLATFORM,
                                 LedgerEntry.Direction.DEBIT, e.feeCents(), t.rideId(), null, e.provider(), e.chargeId(),
@@ -152,14 +192,34 @@ public class WebhookService {
                     }
                 }
                 case PAYMENT_SETTLED -> {
+                    // Pix costuma chegar direto como "recebido": confirma e liquida no mesmo evento.
+                    if (t.status() == PaymentStatus.AWAITING_PROVIDER || t.status() == PaymentStatus.FAILED) {
+                        next = t.withStatus(PaymentStatus.CONFIRMED, now, "webhook:" + e.eventId(), e.feeCents());
+                        if (e.feeCents() != null && e.feeCents() > 0 && !feeExists) {
+                            ledger.write(tx, new LedgerService.Draft(LedgerEntryType.PROVIDER_FEE, LedgerEntry.PLATFORM,
+                                    LedgerEntry.Direction.DEBIT, e.feeCents(), t.rideId(), null, e.provider(), e.chargeId(),
+                                    LedgerStatus.AWAITING_SETTLEMENT, feeKey, null, "Tarifa do provedor"));
+                        }
+                    }
                     for (LedgerEntry le : entries) {
                         if (le.status() == LedgerStatus.AWAITING_SETTLEMENT && le.type() != LedgerEntryType.DRIVER_COMMISSION_DUE) {
-                            ledger.transition(tx, le, LedgerStatus.AVAILABLE, "settled:" + e.eventId(), e.chargeId());
+                            // Com split, a parte do motorista já foi repassada pelo provedor: fica PAID e
+                            // não entra no saldo de saque (evita pagamento em dobro).
+                            boolean viaSplit = t.splitToDriver() && le.type() == LedgerEntryType.DRIVER_EARNING;
+                            ledger.transition(tx, le, viaSplit ? LedgerStatus.PAID : LedgerStatus.AVAILABLE,
+                                    (viaSplit ? "split:" : "settled:") + e.eventId(), e.chargeId());
                         }
                     }
                 }
-                case PAYMENT_FAILED -> next = t.withStatus(PaymentStatus.FAILED, now, "webhook:" + e.eventId(), null);
+                case PAYMENT_FAILED -> {
+                    if (t.status() == PaymentStatus.AWAITING_PROVIDER) {
+                        next = t.withStatus(PaymentStatus.FAILED, now, "webhook:" + e.eventId(), null);
+                    }
+                }
                 case PAYMENT_REFUNDED -> {
+                    if (t.status() == PaymentStatus.REFUNDED) {
+                        break;
+                    }
                     next = t.withStatus(PaymentStatus.REFUNDED, now, "webhook:" + e.eventId(), null);
                     long amount = e.amountCents() != null ? e.amountCents() : t.amountCents();
                     if (!refundExists) {
@@ -169,6 +229,9 @@ public class WebhookService {
                     }
                 }
                 case CHARGEBACK -> {
+                    if (t.status() == PaymentStatus.CHARGEBACK) {
+                        break;
+                    }
                     next = t.withStatus(PaymentStatus.CHARGEBACK, now, "webhook:" + e.eventId(), null);
                     long amount = e.amountCents() != null ? e.amountCents() : t.amountCents();
                     if (!chargebackExists) {
@@ -186,12 +249,15 @@ public class WebhookService {
             }
             return next;
         });
-        switch (e.type()) {
-            case PAYMENT_CONFIRMED -> notifications.notify(updated.passengerId(), NotificationType.PAYMENT_CONFIRMED,
+        if (updated.status() == before) {
+            return;
+        }
+        switch (updated.status()) {
+            case CONFIRMED -> notifications.notify(updated.passengerId(), NotificationType.PAYMENT_CONFIRMED,
                     "Pagamento confirmado", "O pagamento da sua corrida foi confirmado.", Map.of("rideId", updated.rideId()));
-            case PAYMENT_FAILED -> notifications.notify(updated.passengerId(), NotificationType.FINANCIAL_FAILURE,
+            case FAILED -> notifications.notify(updated.passengerId(), NotificationType.FINANCIAL_FAILURE,
                     "Falha no pagamento", "Não foi possível confirmar o pagamento da corrida.", Map.of("rideId", updated.rideId()));
-            case PAYMENT_REFUNDED -> notifications.notify(updated.passengerId(), NotificationType.REFUND,
+            case REFUNDED -> notifications.notify(updated.passengerId(), NotificationType.REFUND,
                     "Reembolso processado", "Um reembolso foi processado para sua corrida.", Map.of("rideId", updated.rideId()));
             default -> {
             }

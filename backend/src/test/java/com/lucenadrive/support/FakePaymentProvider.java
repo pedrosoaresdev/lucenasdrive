@@ -26,9 +26,15 @@ public class FakePaymentProvider implements PaymentProvider {
     }
 
     @Override
+    public boolean supportsSplit() {
+        return true;
+    }
+
+    @Override
     public ChargeResult createCharge(ChargeRequest request) {
         charges.add(request);
-        return new ChargeResult("ch_" + charges.size(), "000201...", null);
+        return new ChargeResult("ch_" + charges.size(), "000201...", null, null,
+                request.splitWalletId() != null);
     }
 
     @Override

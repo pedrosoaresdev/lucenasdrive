@@ -145,6 +145,8 @@ public class PrivacyService {
             driver.put("vehicles", store.query(Query.of(Collections.VEHICLES).eq("driverId", uid).limit(50), Vehicle.class));
             driver.put("pixKey", store.get(Collections.PIX_KEYS, uid, PixKey.class)
                     .map(k -> Map.of("type", k.keyType(), "masked", k.keyMasked())).orElse(null));
+            driver.put("splitAccount", store.get(Collections.PAYMENT_ACCOUNTS, uid, com.lucenadrive.payment.PaymentAccount.class)
+                    .map(a -> Map.of("provider", a.provider(), "walletMasked", a.walletMasked())).orElse(null));
             driver.put("payouts", store.query(Query.of(Collections.PAYOUT_REQUESTS).eq("ownerId", uid)
                     .orderBy("createdAt", Query.Direction.DESC).limit(LIMIT), PayoutRequest.class));
             driver.put("ledger", all(Query.of(Collections.LEDGER_ENTRIES).eq("account", LedgerEntry.driverAccount(uid)),
@@ -266,6 +268,12 @@ public class PrivacyService {
         });
         store.delete(Collections.DRIVER_PRIVATE, uid);
         store.delete(Collections.PIX_KEYS, uid);
+        store.delete(Collections.PAYMENT_ACCOUNTS, uid);
+        // O cliente no provedor de pagamentos segue as regras de retenção do próprio provedor (obrigação fiscal);
+        // aqui só se desfaz o vínculo.
+        store.query(Query.of(Collections.PROVIDER_CUSTOMERS).eq("userId", uid).limit(10),
+                com.lucenadrive.payment.ProviderCustomer.class)
+                .forEach(c -> store.delete(Collections.PROVIDER_CUSTOMERS, c.id()));
         store.delete(Collections.DRIVER_LOCATIONS, uid);
         store.delete(Collections.PRESENCE, uid);
         store.set(Collections.USERS, uid, new User(uid, null, REMOVED, null, null, user.roles(), UserStatus.DELETED,

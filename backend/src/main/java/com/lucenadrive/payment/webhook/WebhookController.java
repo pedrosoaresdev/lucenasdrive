@@ -1,7 +1,10 @@
 package com.lucenadrive.payment.webhook;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,9 +25,14 @@ public class WebhookController {
     }
 
     @PostMapping("/{provider}")
-    public Map<String, String> receive(@PathVariable String provider,
-                                       @RequestHeader(value = "X-Lucena-Signature", required = false) String signature,
+    public Map<String, String> receive(@PathVariable String provider, @RequestHeader HttpHeaders headers,
                                        @RequestBody byte[] body) {
-        return Map.of("result", service.receive(provider, body, signature).name());
+        Map<String, String> lower = new HashMap<>();
+        headers.forEach((name, values) -> {
+            if (!values.isEmpty()) {
+                lower.put(name.toLowerCase(Locale.ROOT), values.get(0));
+            }
+        });
+        return Map.of("result", service.receive(provider, body, lower).name());
     }
 }

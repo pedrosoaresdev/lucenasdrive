@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { RidePaymentComponent } from '../components/ride-payment.component';
 import {
   ApiError, ApiService, DateTimePipe, KmPipe, MinutesPipe, MoneyPipe, PaymentLabelPipe, RideStatusPipe, RideView,
   StateViewComponent,
@@ -8,13 +9,16 @@ import {
 /** Detalhes e recibo da corrida. */
 @Component({
   selector: 'app-ride-detail',
-  imports: [RouterLink, MoneyPipe, DateTimePipe, KmPipe, MinutesPipe, PaymentLabelPipe, RideStatusPipe, StateViewComponent],
+  imports: [RouterLink, RidePaymentComponent, MoneyPipe, DateTimePipe, KmPipe, MinutesPipe, PaymentLabelPipe, RideStatusPipe, StateViewComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="container page">
       @if (!ride()) { <ld-state [state]="error() ? 'error' : 'loading'" [message]="error()" [retryable]="false" /> }
       @else {
         @let r = ride()!;
+        @if (r.status === 'COMPLETED' && r.paymentMethod !== 'CASH') {
+          <div class="noprint"><app-ride-payment [rideId]="r.id" /></div>
+        }
         <article class="card stack receipt">
           <div class="row between"><h1>Recibo</h1><span class="mono small muted">{{ r.code }}</span></div>
           <p class="small muted">{{ r.createdAt | dt }} · {{ r.status | rideStatus }} · {{ r.categoryName }}</p>

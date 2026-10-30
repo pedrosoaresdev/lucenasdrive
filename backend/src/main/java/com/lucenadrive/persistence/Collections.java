@@ -30,6 +30,8 @@ public final class Collections {
     public static final String LEDGER_ENTRIES = "ledgerEntries";
     public static final String PAYOUT_REQUESTS = "payoutRequests";
     public static final String PIX_KEYS = "pixKeys";
+    public static final String PAYMENT_ACCOUNTS = "paymentAccounts";
+    public static final String PROVIDER_CUSTOMERS = "providerCustomers";
     public static final String WEBHOOK_EVENTS = "webhookEvents";
     public static final String PLATFORM_SETTINGS = "platformSettings";
     public static final String ADMIN_AUDIT_LOGS = "adminAuditLogs";

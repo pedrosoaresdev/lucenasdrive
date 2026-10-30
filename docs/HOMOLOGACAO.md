@@ -3,7 +3,7 @@
 Ambiente para testar com o Firebase **real** (Auth, Firestore, Storage, envio de e-mails) usando apenas
 **dados de teste**. O backend e os portais rodam no seu computador; nada é publicado na internet.
 
-> Não é produção: não há provedor de pagamentos, a rota é aproximada sem chave do Google, e o App Check
+> Não é produção: pagamentos só no **sandbox** do Asaas (dinheiro de teste), a rota é aproximada sem chave do Google, e o App Check
 > ainda não está ativo. Não cadastre clientes reais.
 
 ## Situação do projeto `lucenasdrive` (configurado em 2026-10-29)
@@ -68,6 +68,19 @@ de uso justo — servem para testes e piloto pequeno. Com muitos usuários, hosp
 
 Google Maps continua suportado: com `HOMOLOG_MAPS_BROWSER_KEY` preenchida os portais usam Google; com a chave de
 servidor (o script pergunta, opcional) as rotas usam a Google Routes API, com OSRM e linha reta como reserva.
+
+## Pagamentos: Asaas sandbox (opcional)
+1. Crie uma conta em <https://sandbox.asaas.com> (ambiente de testes, sem dinheiro real).
+2. No sandbox: *Integrações → Chave de API* → gere a chave (começa com `$aact_`).
+3. Rode `.\scripts\homolog-up.ps1`; na primeira vez ele pede a chave do Asaas (fica só em `.homolog\`, fora do
+   git). Para trocar, apague `.homolog\asaas-sandbox-key.txt`. Deixe vazio para continuar só com dinheiro.
+4. Com a chave, o passageiro passa a ver **Pix** e **Cartão**. Ao fim da corrida, o app mostra o QR Pix (ou o link
+   do cartão). Pague pelo sandbox do Asaas (o painel e a documentação do Asaas explicam como simular o pagamento
+   de testes); em até 1 minuto — ou ao tocar em "Já paguei — verificar" — o status muda para confirmado.
+5. Split: crie uma segunda conta no sandbox para o motorista, copie o **walletId** dela e cole em
+   *Ganhos → Recebimento automático* no app do motorista. As próximas corridas digitais repassam a parte dele direto.
+6. Webhook: no computador local não há endereço público, então a confirmação vem pela consulta automática. O token
+   do webhook (para quando houver domínio) fica em `.homolog\asaas-webhook-token.txt`.
 
 ## 3. Roteiro de teste sugerido
 Mesmo roteiro do `docs/INSTALL.md` (cidade e área, tarifa, cupom, motorista, documentos, aprovação, corrida,

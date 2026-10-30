@@ -97,6 +97,26 @@ if (-not (Test-Path $MapsKeyFile)) {
 }
 $MapsServerKey = "$(Get-Content $MapsKeyFile -Raw)".Trim()
 
+# 3c) Pagamentos pelo Asaas em SANDBOX (ambiente de testes: nenhum dinheiro real). Opcional.
+#     A chave fica so em .homolog (fora do git). Para trocar, apague .homolog\asaas-sandbox-key.txt.
+$AsaasKeyFile = Join-Path $State 'asaas-sandbox-key.txt'
+if (-not (Test-Path $AsaasKeyFile)) {
+  Write-Host 'Chave de API do Asaas SANDBOX (opcional; comeca com $aact_). Sem ela, Pix e cartao ficam desativados'
+  Write-Host 'e as corridas aceitam so dinheiro. Crie em https://sandbox.asaas.com > Integracoes > Chave de API.'
+  Write-Host 'Deixe vazio e aperte Enter para pular.'
+  $ak = (Read-Host 'Chave do Asaas sandbox').Trim()
+  if ($ak -and -not $ak.StartsWith('$aact_')) { Write-Host '  AVISO: a chave nao parece do Asaas ($aact_...). Confira se nao e a de producao.' }
+  Set-Content -Encoding ASCII $AsaasKeyFile $ak
+}
+$AsaasKey = "$(Get-Content $AsaasKeyFile -Raw)".Trim()
+$AsaasTokenFile = Join-Path $State 'asaas-webhook-token.txt'
+if (-not (Test-Path $AsaasTokenFile)) {
+  $tb = New-Object byte[] 24
+  [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($tb)
+  Set-Content -Encoding ASCII $AsaasTokenFile ('whk' + (($tb | ForEach-Object { $_.ToString('x2') }) -join ''))
+}
+$AsaasToken = "$(Get-Content $AsaasTokenFile -Raw)".Trim()
+
 Write-Host '> Instalando dependencias (se necessario)...'
 if (-not (Test-Path (Join-Path $Root 'firebase\node_modules'))) { npm ci --prefix (Join-Path $Root 'firebase') }
 # Reinstala quando o package-lock.json mudou (ex.: nova biblioteca, como o mapa OpenStreetMap).
@@ -176,7 +196,15 @@ $envCmd = @(
   "cd '$Root\backend'",
   "java -jar target\lucena-drive-backend-0.1.0-SNAPSHOT.jar"
 )
+# Chave do Asaas vai pelo ambiente herdado (nao aparece na linha de comando da janela).
+if ($AsaasKey) {
+  $env:PAYMENTS_PROVIDER = 'asaas'; $env:PAYMENTS_API_KEY = $AsaasKey; $env:PAYMENTS_WEBHOOK_SECRET = $AsaasToken
+  Write-Host '  Pagamentos: Asaas SANDBOX ativo (Pix/cartao de teste, split automatico para o motorista).'
+} else {
+  $env:PAYMENTS_PROVIDER = 'none'; $env:PAYMENTS_API_KEY = ''; $env:PAYMENTS_WEBHOOK_SECRET = ''
+}
 Start-Process $Shell -ArgumentList '-NoExit', '-Command', ($envCmd -join '; ')
+Remove-Item Env:PAYMENTS_API_KEY, Env:PAYMENTS_WEBHOOK_SECRET -ErrorAction SilentlyContinue
 Wait-Url 'http://127.0.0.1:8080/actuator/health'
 if ($bootstrap.Count -gt 0) { New-Item -ItemType File -Force -Path $OwnerDone | Out-Null }
 
