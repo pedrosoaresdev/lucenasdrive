@@ -83,4 +83,11 @@ class RouteProvidersTest {
         assertThatThrownBy(() -> chain.route(A, B)).isInstanceOf(ApiException.class)
                 .satisfies(e -> assertThat(((ApiException) e).code()).isEqualTo(ErrorCode.INTEGRATION_FAILURE));
     }
+
+    @Test
+    void osrmTableParsesDurationsAndMissingRoutes() {
+        var res = java.util.Map.<String, Object>of("code", "Ok", "durations",
+                java.util.Arrays.asList(java.util.List.of(120.4), java.util.Arrays.asList((Object) null), java.util.List.of(59.6)));
+        assertThat(com.lucenadrive.geo.OsrmRouteProviderAccess.parseTable(res, 3)).containsExactly(120L, null, 60L);
+    }
 }

@@ -26,6 +26,23 @@ public class FallbackRouteProvider implements RouteProvider {
     }
 
     @Override
+    public java.util.List<Long> durationsTo(java.util.List<GeoPoint> origins, GeoPoint destination) {
+        ApiException last = null;
+        for (RouteProvider p : providers) {
+            try {
+                return p.durationsTo(origins, destination);
+            } catch (ApiException e) {
+                last = e;
+                log.warn("eta_provider_failed provider={} err={}", p.getClass().getSimpleName(), e.getMessage());
+            } catch (RuntimeException e) {
+                last = new ApiException(ErrorCode.INTEGRATION_FAILURE, "Falha ao calcular tempos de chegada.");
+                log.warn("eta_provider_failed provider={} err={}", p.getClass().getSimpleName(), e.toString());
+            }
+        }
+        throw last != null ? last : new ApiException(ErrorCode.INTEGRATION_NOT_CONFIGURED, "Cálculo de rotas indisponível.");
+    }
+
+    @Override
     public RouteResult route(GeoPoint origin, GeoPoint destination) {
         ApiException last = null;
         for (RouteProvider p : providers) {

@@ -18,7 +18,10 @@ public class GoogleRoutesProvider implements RouteProvider {
 
     private static final String URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 
+    private static final String MATRIX_URL = "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix";
+
     private final RestClient client;
+    private final RestClient matrixClient;
 
     public GoogleRoutesProvider(String apiKey) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -29,6 +32,38 @@ public class GoogleRoutesProvider implements RouteProvider {
                 .defaultHeader("X-Goog-Api-Key", apiKey)
                 .defaultHeader("X-Goog-FieldMask", "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline")
                 .build();
+        this.matrixClient = RestClient.builder()
+                .requestFactory(factory)
+                .defaultHeader("X-Goog-Api-Key", apiKey)
+                .defaultHeader("X-Goog-FieldMask", "originIndex,duration,condition")
+                .build();
+    }
+
+    /** Matriz de rotas do Google (computeRouteMatrix), com trânsito: tempos de várias origens até o embarque. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Long> durationsTo(List<GeoPoint> origins, GeoPoint destination) {
+        if (origins.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Object> body = Map.of(
+                "origins", origins.stream().map(o -> Map.of("waypoint", waypoint(o))).toList(),
+                "destinations", List.of(Map.of("waypoint", waypoint(destination))),
+                "travelMode", "DRIVE", "routingPreference", "TRAFFIC_AWARE");
+        try {
+            List<Map<String, Object>> res = matrixClient.post().uri(MATRIX_URL).contentType(MediaType.APPLICATION_JSON)
+                    .body(body).retrieve().body(List.class);
+            Long[] out = new Long[origins.size()];
+            for (Map<String, Object> el : res == null ? List.<Map<String, Object>>of() : res) {
+                int idx = ((Number) el.getOrDefault("originIndex", 0)).intValue();
+                if (idx >= 0 && idx < out.length && "ROUTE_EXISTS".equals(el.get("condition")) && el.get("duration") != null) {
+                    out[idx] = Long.parseLong(String.valueOf(el.get("duration")).replace("s", "").split("\\.")[0]);
+                }
+            }
+            return java.util.Arrays.asList(out);
+        } catch (RestClientException e) {
+            throw new ApiException(ErrorCode.INTEGRATION_FAILURE, "Falha ao calcular tempos de chegada.");
+        }
     }
 
     @Override

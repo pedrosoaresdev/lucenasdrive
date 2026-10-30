@@ -158,3 +158,9 @@ administrativa revogável (`adminSessions`, token HMAC no cabeçalho `X-Lucena-M
 ID token do mesmo usuário) → 4. operações críticas exigem MFA confirmado há ≤ 5 min (step-up). Bloqueio por
 15 min após 5 falhas, anti-replay de código TOTP, alerta de novo dispositivo, eventos em `securityEvents`.
 O proprietário (OWNER) é provisionado somente pelo processo `OwnerBootstrap` (variáveis de ambiente, uma vez).
+
+## Despacho por menor ETA
+`DispatchService.dispatchNextBatch`: filtra motoristas livres no raio (posição recente, categoria, sem oferta
+pendente), pega os 10 mais próximos em linha reta e ordena pelo tempo de chegada pelas ruas
+(`RouteService.etaSeconds` → `RouteProvider.durationsTo`, uma consulta em matriz). Lote = `batchSize` primeiros.
+Falha de rotas → ordem por distância. O ETA vai na oferta (`rideOffers.etaToPickupSeconds`).

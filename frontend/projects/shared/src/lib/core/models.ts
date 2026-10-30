@@ -107,6 +107,8 @@ export interface RideOffer {
   pickupAddress: string; destinationAddress: string; pickupLat: number; pickupLng: number;
   distanceToPickupMeters: number; tripDistanceMeters: number; tripDurationSeconds: number;
   estimatedEarningCents: number; passengerName: string; passengerRating: number | null; expiresAt: Instantish;
+  /** tempo estimado até o embarque, pelas ruas (critério de escolha do motorista) */
+  etaToPickupSeconds?: number | null;
 }
 
 export interface AppNotification {

@@ -39,3 +39,10 @@ Nenhuma destas integrações está simulada como se estivesse funcionando. Sem c
 
 **A transferência financeira real só deve ser considerada concluída após uma transação de homologação confirmada
 pelo provedor.**
+
+## Pagamentos com divisão automática (decisão do proprietário)
+O proprietário optou por um gateway sem mensalidade com **split automático** (comissão da plataforma × parte do
+motorista). O sistema já separa esses valores por corrida no ledger (`PLATFORM_COMMISSION`, `DRIVER_EARNING`/
+`DRIVER_COMMISSION_DUE`), então o adaptador do gateway só precisa repassar a regra de divisão na cobrança.
+Observação: gateways "grátis" cobram **taxa por transação** (Pix/cartão); comparar Asaas, Mercado Pago e outros
+antes de implementar. Pendente: escolha do gateway, conta de testes (sandbox) e chaves (fornecidas fora do chat).

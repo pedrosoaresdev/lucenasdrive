@@ -7,8 +7,8 @@ Resultados reais da última execução neste repositório:
 
 | Suíte | Comando | Resultado |
 |---|---|---|
-| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **65 testes, 0 falhas** (inclui rotas OSRM, plano B, CSV, degraus de demanda e leitura paginada) |
-| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **19 testes, 0 falhas** + 3 contra o Firestore Emulator (exposição de endpoints internos, preço dinâmico e mapa de calor, relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
+| Backend — unitários (CPF, tarifas, máquina de estados, cupons, TOTP RFC 6238, criptografia, assinatura de webhook, DocStore) | `mvn verify` | **66 testes, 0 falhas** (inclui matriz de ETA do OSRM, rotas OSRM, plano B, CSV, degraus de demanda e leitura paginada) |
+| Backend — integração (contexto Spring completo, segurança real, DocStore em memória com semântica do Firestore) | `mvn verify` | **21 testes, 0 falhas** (inclui despacho por menor ETA com OSRM simulado e queda para distância) + 3 contra o Firestore Emulator (exposição de endpoints internos, preço dinâmico e mapa de calor, relatórios CSV, edição de regiões, "O olho de Deus", fluxo completo, concorrência, permissões/MFA, pagamentos, LGPD/anexos, redespacho, segurança em viagem, tarifa programada) |
 | Regras do Firestore e Storage no Firebase Emulator | `npm run test:rules` | **18 testes, 0 falhas** (inclui negação de acesso a `presence` e `locationConsents`) |
 | Frontend — biblioteca compartilhada (validações, formatação, estrelas acessíveis) | `ng test shared` | **21 testes, 0 falhas** (inclui busca OpenStreetMap, polyline, convite de localização e painel de segurança) |
 | Build de produção dos 3 portais | `ng build …` | **sem erros nem avisos** |
@@ -75,6 +75,11 @@ alterações de tarifa programadas com data de vigência (versão criada no inst
 **Painel "O olho de Deus" (admin):** mapa e lista, atualizados a cada 15 s, com nome e tipo (motorista/passageiro)
 de quem ativou, no app, o compartilhamento opcional de localização. Somente ADMIN/OWNER; acessos auditados;
 consentimento revogável a qualquer momento em Perfil. O mapa exige a chave de navegador do Google Maps.
+
+**Despacho por menor tempo de chegada:** entre os motoristas livres (sem corrida e sem outra oferta pendente) no
+raio, os 10 mais próximos em linha reta entram numa única consulta em matriz de rotas (OSRM `/table` ou Google
+`computeRouteMatrix`, com trânsito); a oferta vai para quem chega mais rápido ao embarque pelas ruas. Se o serviço
+de rotas falhar, vale a estimativa por distância. O motorista vê "Embarque a ~X min (Y km)" na oferta.
 
 **Etapa 6 (escala, valores exatos e segurança):** saldos de motoristas, financeiro, série diária do painel e
 anonimização LGPD agora leem os registros em páginas, sem teto silencioso (antes paravam em 10–20 mil registros e

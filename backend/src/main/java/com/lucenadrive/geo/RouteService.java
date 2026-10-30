@@ -34,6 +34,14 @@ public class RouteService {
         return realRoutes;
     }
 
+    /** Tempos de chegada (s) de cada origem ao destino; nulo para quem não tem rota. Lança se nada estiver disponível. */
+    public java.util.List<Long> etaSeconds(java.util.List<GeoPoint> origins, GeoPoint destination) {
+        if (provider == null) {
+            throw new ApiException(ErrorCode.INTEGRATION_NOT_CONFIGURED, "Cálculo de rotas indisponível.");
+        }
+        return provider.durationsTo(origins, destination);
+    }
+
     public boolean available() {
         return provider != null;
     }

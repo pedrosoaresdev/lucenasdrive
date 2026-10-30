@@ -12,7 +12,7 @@ public record RideOffer(String id, String rideId, String driverId, Status status
                         String pickupAddress, String destinationAddress, double pickupLat, double pickupLng,
                         long distanceToPickupMeters, long tripDistanceMeters, long tripDurationSeconds,
                         long estimatedEarningCents, String passengerName, Double passengerRating,
-                        Instant expiresAt, Instant createdAt, Instant respondedAt) {
+                        Instant expiresAt, Instant createdAt, Instant respondedAt, Long etaToPickupSeconds) {
 
     public enum Status { PENDING, ACCEPTED, DECLINED, EXPIRED, SUPERSEDED }
 
@@ -23,6 +23,6 @@ public record RideOffer(String id, String rideId, String driverId, Status status
     public RideOffer withStatus(Status s, Instant at) {
         return new RideOffer(id, rideId, driverId, s, category, pickupAddress, destinationAddress, pickupLat, pickupLng,
                 distanceToPickupMeters, tripDistanceMeters, tripDurationSeconds, estimatedEarningCents, passengerName,
-                passengerRating, expiresAt, createdAt, at);
+                passengerRating, expiresAt, createdAt, at, etaToPickupSeconds);
     }
 }

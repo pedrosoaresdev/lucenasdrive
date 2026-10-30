@@ -67,6 +67,48 @@ public class OsrmRouteProvider implements RouteProvider {
         return parse(res);
     }
 
+    /** Matriz do OSRM (/table): tempos de várias origens até um destino em UMA consulta. */
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Long> durationsTo(List<GeoPoint> origins, GeoPoint destination) {
+        if (origins.isEmpty()) {
+            return List.of();
+        }
+        throttle();
+        StringBuilder coords = new StringBuilder(String.format(Locale.ROOT, "%.6f,%.6f", destination.lng(), destination.lat()));
+        StringBuilder sources = new StringBuilder();
+        for (int i = 0; i < origins.size(); i++) {
+            GeoPoint o = origins.get(i);
+            coords.append(String.format(Locale.ROOT, ";%.6f,%.6f", o.lng(), o.lat()));
+            sources.append(i == 0 ? "" : ";").append(i + 1);
+        }
+        String url = baseUrl + "/table/v1/driving/" + coords + "?sources=" + sources + "&destinations=0&annotations=duration";
+        Map<String, Object> res;
+        try {
+            res = client.get().uri(url).retrieve().body(Map.class);
+        } catch (RestClientException e) {
+            throw new ApiException(ErrorCode.INTEGRATION_FAILURE, "Falha ao calcular tempos de chegada.");
+        }
+        return parseTable(res, origins.size());
+    }
+
+    @SuppressWarnings("unchecked")
+    static List<Long> parseTable(Map<String, Object> res, int n) {
+        if (res == null || !"Ok".equals(res.get("code"))) {
+            throw new ApiException(ErrorCode.INTEGRATION_FAILURE, "Falha ao calcular tempos de chegada.");
+        }
+        List<List<Object>> durations = (List<List<Object>>) res.get("durations");
+        if (durations == null || durations.size() != n) {
+            throw new ApiException(ErrorCode.INTEGRATION_FAILURE, "Resposta inesperada do serviço de rotas.");
+        }
+        java.util.ArrayList<Long> out = new java.util.ArrayList<>();
+        for (List<Object> row : durations) {
+            Object v = row == null || row.isEmpty() ? null : row.get(0);
+            out.add(v instanceof Number num ? Math.round(num.doubleValue()) : null);
+        }
+        return out;
+    }
+
     @SuppressWarnings("unchecked")
     static RouteResult parse(Map<String, Object> res) {
         if (res == null || !"Ok".equals(res.get("code"))) {

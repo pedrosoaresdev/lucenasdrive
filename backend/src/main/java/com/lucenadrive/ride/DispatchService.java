@@ -68,7 +68,45 @@ public class DispatchService {
         this.clock = clock;
     }
 
-    record Candidate(DriverLocation location, long distanceMeters) {
+    record Candidate(DriverLocation location, long distanceMeters, Long etaSeconds) {
+
+        Candidate withEta(Long eta) {
+            return new Candidate(location, distanceMeters, eta);
+        }
+    }
+
+    /** Quantos motoristas livres mais próximos (em linha reta) entram no cálculo de ETA pelas ruas. */
+    static final int ETA_POOL = 10;
+
+    private com.lucenadrive.geo.RouteService routes;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setRouteService(com.lucenadrive.geo.RouteService routes) {
+        this.routes = routes;
+    }
+
+    /**
+     * Ordena os candidatos pelo MENOR tempo de chegada ao embarque pelas ruas (Google/OSRM, uma consulta em matriz).
+     * Sem serviço de rotas, ou se ele falhar, mantém a ordem por distância (estimativa). Sem rota = fim da fila.
+     */
+    List<Candidate> rankByEta(List<Candidate> nearest, GeoPoint pickup) {
+        if (nearest.isEmpty() || routes == null || !routes.available()) {
+            return nearest;
+        }
+        try {
+            List<Long> etas = routes.etaSeconds(nearest.stream()
+                    .map(c -> new GeoPoint(c.location().lat(), c.location().lng())).toList(), pickup);
+            List<Candidate> withEta = new ArrayList<>();
+            for (int i = 0; i < nearest.size(); i++) {
+                withEta.add(nearest.get(i).withEta(i < etas.size() ? etas.get(i) : null));
+            }
+            withEta.sort(Comparator.comparing((Candidate c) -> c.etaSeconds() == null ? Long.MAX_VALUE : c.etaSeconds())
+                    .thenComparingLong(Candidate::distanceMeters));
+            return withEta;
+        } catch (RuntimeException e) {
+            log.warn("dispatch_eta_failed err={}", e.toString());
+            return nearest;
+        }
     }
 
     /** Envia o próximo lote de ofertas. Retorna quantas ofertas foram criadas. */
@@ -88,22 +126,25 @@ public class DispatchService {
                 .filter(l -> l.updatedAt() != null && l.updatedAt().isAfter(now.minus(STALE_LOCATION)))
                 .filter(l -> !disp.excludes(l.driverId()))
                 .filter(l -> !l.driverId().equals(ride.passengerId()))
-                .map(l -> new Candidate(l, Math.round(GeoMath.haversineMeters(pickup, new GeoPoint(l.lat(), l.lng())))))
+                .map(l -> new Candidate(l, Math.round(GeoMath.haversineMeters(pickup, new GeoPoint(l.lat(), l.lng()))), null))
                 .filter(c -> c.distanceMeters() <= props.dispatch().radiusKm() * 1000)
                 .sorted(Comparator.comparingLong(Candidate::distanceMeters))
                 .toList();
-        List<Candidate> chosen = new ArrayList<>();
+        // Livres de verdade: sem corrida (available) e sem outra oferta pendente.
+        List<Candidate> free = new ArrayList<>();
         for (Candidate c : candidates) {
-            if (chosen.size() >= props.dispatch().batchSize()) {
+            if (free.size() >= ETA_POOL) {
                 break;
             }
             boolean busyWithOffer = store.count(Query.of(Collections.RIDE_OFFERS).eq("driverId", c.location().driverId())
                     .eq("status", RideOffer.Status.PENDING)) > 0;
             if (!busyWithOffer) {
-                chosen.add(c);
+                free.add(c);
             }
         }
-        log.debug("dispatch ride={} candidates={} chosen={}", rideId, candidates.size(), chosen.size());
+        List<Candidate> chosen = rankByEta(free, pickup).stream().limit(props.dispatch().batchSize()).toList();
+        log.debug("dispatch ride={} candidates={} free={} chosen={} etas={}", rideId, candidates.size(), free.size(), chosen.size(),
+                chosen.stream().map(Candidate::etaSeconds).toList());
         Instant expiresAt = now.plus(props.dispatch().offerTimeout());
         List<RideOffer> created = store.transaction(tx -> {
             Ride current = tx.get(Collections.RIDES, rideId, Ride.class).orElse(null);
@@ -120,7 +161,7 @@ public class DispatchService {
                         current.destination().address(), current.origin().lat(), current.origin().lng(),
                         c.distanceMeters(), current.route().distanceMeters(), current.route().durationSeconds(),
                         current.fare().driverEarningCents(), current.passenger().name(), current.passenger().rating(),
-                        expiresAt, now, null);
+                        expiresAt, now, null, c.etaSeconds());
                 offers.add(offer);
                 offered.add(driverId);
             }

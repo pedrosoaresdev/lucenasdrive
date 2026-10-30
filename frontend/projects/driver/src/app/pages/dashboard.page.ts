@@ -52,7 +52,10 @@ interface Finance { periods: { period: string; rides: number; earningsCents: num
               <div class="row between"><span class="badge brand">Nova corrida · {{ offer.category }}</span>
                 <span class="timer" [class.low]="secondsLeft(offer) <= 5">{{ secondsLeft(offer) }}s</span></div>
               <div class="earn">{{ offer.estimatedEarningCents | money }} <span class="small muted">ganho estimado</span></div>
-              <p class="small"><strong>Embarque</strong> a {{ offer.distanceToPickupMeters | km }} · {{ offer.pickupAddress }}</p>
+              <p class="small"><strong>Embarque</strong>
+                @if (offer.etaToPickupSeconds) { a ~{{ offer.etaToPickupSeconds | minutes }} ({{ offer.distanceToPickupMeters | km }}) }
+                @else { a {{ offer.distanceToPickupMeters | km }} }
+                · {{ offer.pickupAddress }}</p>
               <p class="small"><strong>Destino</strong> {{ offer.destinationAddress }} · {{ offer.tripDistanceMeters | km }} · {{ offer.tripDurationSeconds | minutes }}</p>
               <p class="small muted">Passageiro(a): {{ offer.passengerName }}
                 @if (offer.passengerRating) { · ★ {{ offer.passengerRating.toFixed(2) }} } @else { · sem avaliações }</p>
